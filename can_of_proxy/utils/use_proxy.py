@@ -1,4 +1,5 @@
 import requests
+import aiohttp
 
 
 def get_request(url: str, proxy: str) -> requests.Response:
