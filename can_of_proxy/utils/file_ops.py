@@ -38,7 +38,7 @@ def write_json(file: Path, data):
         json.dump(data, f, indent=4)
 
 
-def copy(file: Path, new_dir: Path):
+def copy_files(file: Path, new_dir: Path):
     new_file = new_dir / file.name
     file_content = read_file(file)
     write_file(new_file, file_content)

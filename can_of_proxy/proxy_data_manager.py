@@ -6,6 +6,7 @@ from utils import read_json, write_json
 
 class ProxyDataManager:
     def __init__(self, store: Path | False = False):
+        """Just there to add get and remove proxies in a special format with the option to store them in a file."""
         self.store = store
         self.proxies = []
 
@@ -26,21 +27,13 @@ class ProxyDataManager:
     def add_proxy(self, ip: str | list, port, protocol: str, country: str, anonymity: str, url: str = None):
         """Use pure """
         if url:
-
-            proxy = {
-                "ip": ip,
-                "port": port,
-                "https": False,
-                "anonymity":,
-            "protocol": protocol
-            }
-
             proxy = {
                 "ip": ip,
                 "port": port,
                 "https": False,
                 "protocol": protocol
             }
+
             self._update_data()
 
         def rm_duplicate_proxies(self):
