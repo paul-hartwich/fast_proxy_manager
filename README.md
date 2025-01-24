@@ -16,11 +16,11 @@ import can_of_proxy as cop
 
 ### AutoCan
 
-Like the name says, it creates a proxy can automatically for you. It will auto refresh the can if the proxys won't work
+Like the name says, it creates a proxy can automatically for you. It will auto refresh the can if the proxys don't work
 anymore.
 And remove proxies from the list if they are not working.
 This script does maintain the can op proxies for you.
-Best use for looping scraping scripts or easy use of proxy.
+Best use for looping scraping scripts or for easy use of proxy.
 
 **There are arguments you can pass to the AutoCan for Configuration:**
 
