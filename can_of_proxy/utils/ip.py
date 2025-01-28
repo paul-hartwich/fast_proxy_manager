@@ -61,10 +61,11 @@ class IP:
         """
         Simple class to handle IP addresses with protocols and ports.
         Very basic and general purpose.
+        No problem if any part is missing, it won't cause an error.
 
-        :param protocol: like http, https, socks4, socks5
-        :param ip: has to be in format 123.123.123.123
-        :param port: has to be an integer or string between 1 and 65535
+        :param protocol: Like http, https, socks4, socks5
+        :param ip: has to be in format 255.255.255.255
+        :param port: has to be an integer between 1 and 65535
         :param url: can be missing protocol, port or both
         """
         self.protocol = None
@@ -101,9 +102,18 @@ class IP:
             return self.ip
 
     def _validate_everything(self):
-        _validate_protocol(self.protocol)
-        _validate_ip(self.ip)
-        _validate_port(self.port)
+        if self.protocol:
+            self.protocol = _validate_protocol(self.protocol)
+        if self.ip:
+            self.ip = _validate_ip(self.ip)
+        if self.port:
+            self.port = _validate_port(self.port)
 
     def __str__(self):
         return self.url()
+
+
+if __name__ == '__main__':
+    # Test the IP class
+    ip = IP(ip="123.123.123.123", port=8080, protocol="socks5")
+    print(ip.url())

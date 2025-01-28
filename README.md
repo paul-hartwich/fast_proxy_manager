@@ -1,5 +1,7 @@
 # Can of Proxy
 
+*Note: socks protocol is not supported because of the lack of free proxies*
+
 ## Installation
 
 ```bash
