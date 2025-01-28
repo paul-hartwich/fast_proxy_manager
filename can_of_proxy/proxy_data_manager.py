@@ -4,39 +4,25 @@ from utils import read_json, write_json, IP
 from json import JSONDecodeError
 
 
-def _validate_protocol(protocol: str) -> str:
-    if protocol not in ("http", "https", "socks4", "socks5", None):
+def _validate_protocol(protocol: str | None) -> str | None:
+    if protocol is not None and protocol not in ("http", "https", "socks4", "socks5"):
         raise ValueError("Invalid protocol used to create ProxyDataManager")
     return protocol
 
 
 class ProxyDataManager:
-    def __init__(self, json_file: Path = None, preferred_protocol: str = None, preferred_country: str = None,
-                 preferred_anonymity: str = None, allowed_fails_in_row: int = 3, fails_without_check: int = 2,
+    def __init__(self, json_file: Path | None = None, preferred_protocol: str | None = None,
+                 preferred_country: str | None = None,
+                 preferred_anonymity: str | None = None, allowed_fails_in_row: int = 3, fails_without_check: int = 2,
                  dont_store_data: bool = False, percent_failed_to_remove: float = 0.5):
-        """
-        Just there to add get and remove proxies in a special format with the option to json_file them in a file.
-        :param json_file: The file to store the proxies in.
-        :param preferred_protocol: The protocol that the proxy should have.
-        :param preferred_country: The country that the proxy should be from.
-        :param preferred_anonymity: The anonymity level that the proxy should have.
-        :param allowed_fails_in_row: The number of times a proxy can fail in a row before it gets removed.
-        :param fails_without_check: The number of times a proxy can fail without being checked before it gets removed.
-        :param dont_store_data: If the data should be stored in the JSON file or not. NOT RECOMMENDED!
-        :param percent_failed_to_remove: Example: 0.5 fails: a success: b, if a/(a+b) > percent_failed_to_remove, then the proxy will be removed.
-        The lower the value, the more likely the proxy will be removed because of a high chance to fail.
-        """
         self.dont_store_data = dont_store_data
-
         self.allowed_fails_in_row = allowed_fails_in_row
         self.fails_without_check = fails_without_check
         self.percent_failed_to_remove = percent_failed_to_remove
-
         self.preferred_protocol = _validate_protocol(preferred_protocol)
         self.preferred_country = preferred_country
         self.preferred_anonymity = preferred_anonymity
-
-        self.json_file = json_file if isinstance(json_file, Path) else Path("proxies.json")
+        self.json_file = Path(json_file) if json_file else Path("proxies.json")
         self.proxies = self._load_proxies()
         self.last_proxy_index = None
 
@@ -48,7 +34,6 @@ class ProxyDataManager:
                 except JSONDecodeError:
                     return []
             self.json_file.touch(exist_ok=True)
-            return []
         return []
 
     def _write_data(self):
@@ -56,8 +41,10 @@ class ProxyDataManager:
             write_json(self.json_file, self.proxies)
 
     def _rm_duplicate_proxies(self):
-        """Remove duplicate proxies from the list which have the same URL,
-        keeping the one with the most data."""
+        """
+        Remove duplicate proxies from the list which have the same URL,
+        prefers to keep the one with the most data.
+        """
         seen = {}
         for proxy in self.proxies:
             url = proxy['url']
@@ -71,7 +58,6 @@ class ProxyDataManager:
         self.proxies = list(seen.values())
 
     def update_data(self, remove_duplicates: bool = True):
-        """Updates the storage file of the proxies and also cleans it up al little."""
         if remove_duplicates:
             self._rm_duplicate_proxies()
         self._write_data()
@@ -84,44 +70,27 @@ class ProxyDataManager:
         If no proxy left, you should try other sources for proxy.
         """
         if self.last_proxy_index is not None:
-            self._rm_proxy(self.last_proxy_index)
+            self.rm_proxy(self.last_proxy_index)
 
     def feedback_proxy(self, success: bool):
         if self.last_proxy_index is None or self.last_proxy_index >= len(self.proxies):
             return
 
-        # Check if the proxy request was successful or not
-        if success is True:
-            # Increment the success count and reset the consecutive failure count
-            self.proxies[self.last_proxy_index]["times_succeed"] += 1
-            self.proxies[self.last_proxy_index]["times_failed_in_row"] = 0
+        proxy = self.proxies[self.last_proxy_index]
+        if success:
+            proxy["times_succeed"] += 1
+            proxy["times_failed_in_row"] = 0
         else:
-            # Increment the failure count and the consecutive failure count
-            self.proxies[self.last_proxy_index]["times_failed"] += 1
-            self.proxies[self.last_proxy_index]["times_failed_in_row"] += 1
-            # Check if the consecutive failure count exceeds the allowed limit
-            if self.proxies[self.last_proxy_index]["times_failed_in_row"] > self.allowed_fails_in_row:
-                # Remove the proxy if it has failed too many times consecutively
-                self._rm_proxy(self.last_proxy_index)
-            # Check if the total failure count exceeds the allowed limit without a check
-            elif self.proxies[self.last_proxy_index][
-                "times_failed"] > self.fails_without_check:
-                fail_success_ratio = self.proxies[self.last_proxy_index]["times_failed"] / (
-                        self.proxies[self.last_proxy_index]["times_failed"] +
-                        self.proxies[self.last_proxy_index][
-                            "times_succeed"])  # Calculate the failure rate: percentage of failures on average
-                # Remove the proxy if the failure rate is more than 50%
-                if fail_success_ratio > self.percent_failed_to_remove:  # the likeliness of the proxy being bad is higher than max allowed
-                    self._rm_proxy(self.last_proxy_index)
-        # Update the JSON file with the current state of proxies
+            proxy["times_failed"] += 1
+            proxy["times_failed_in_row"] += 1
+            if proxy["times_failed_in_row"] > self.allowed_fails_in_row or \
+                    proxy["times_failed"] > self.fails_without_check and \
+                    proxy["times_failed"] / (
+                    proxy["times_failed"] + proxy["times_succeed"]) > self.percent_failed_to_remove:
+                self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
     def add_proxy(self, proxy: IP, country: str | None = None, anonymity: str | int | None = None):
-        """
-        Add a proxy to the list with the right format.
-
-        IT IS NECESSARY TO CALL THE update_data METHOD AFTER ADDING A PROXY OR MORE!
-        """
         proxy_data = {
             "protocol": proxy.protocol,
             "ip": proxy.ip,
@@ -135,21 +104,20 @@ class ProxyDataManager:
         }
         self.proxies.append(proxy_data)
 
-    def _rm_proxy(self, index: int):
-        try:
+    def rm_proxy(self, index: int):
+        if 0 <= index < len(self.proxies):
             self.proxies.pop(index)
-        except IndexError:
+            if self.last_proxy_index is not None and index < self.last_proxy_index:
+                self.last_proxy_index -= 1
+            self._write_data()
+        else:
             raise IndexError("Proxy does not exist")
-        if self.last_proxy_index is not None and index < self.last_proxy_index:
-            self.last_proxy_index -= 1
-        self._write_data()
 
     def rm_all_proxies(self):
         self.proxies = []
         self._write_data()
 
     def get_random_proxy(self, return_type: str = "url") -> str | None:
-        """Won't return the same proxy twice in a row, except when there is only one proxy. Will return None if there are None."""
         if len(self.proxies) == 1:
             self.last_proxy_index = 0
             return self.proxies[0][return_type]
@@ -164,7 +132,6 @@ class ProxyDataManager:
         if not preferred_proxies:
             return None
 
-        # Exclude the last used proxy if there is more than one preferred proxy
         if len(preferred_proxies) > 1 and self.last_proxy_index is not None:
             preferred_proxies = [
                 proxy for proxy in preferred_proxies
@@ -177,14 +144,3 @@ class ProxyDataManager:
 
     def __len__(self):
         return len(self.proxies)
-
-
-if __name__ == '__main__':
-    manager = ProxyDataManager()
-    manager.add_proxy(IP(url="http://123.123.123.123:1020"))
-    manager.add_proxy(IP(url="http://123.123.123.123:2020"))
-    manager.add_proxy(IP(url="http://123.123.123.123:3020"))
-
-    manager.update_data(remove_duplicates=True)
-    print(manager.get_random_proxy())
-    manager.feedback_proxy(False)
