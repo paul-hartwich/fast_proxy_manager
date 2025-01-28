@@ -1,4 +1,3 @@
-import time
 from random import choice
 from pathlib import Path
 from utils import read_json, write_json, IP
@@ -13,8 +12,19 @@ def _validate_protocol(protocol: str) -> str:
 
 class ProxyDataManager:
     def __init__(self, json_file: Path = True, preferred_protocol: str = "http", preferred_country: str = None,
-                 preferred_anonymity: str = None, allowed_fails_in_row: int = 3, fails_without_check: int = 2):
-        """Just there to add get and remove proxies in a special format with the option to json_file them in a file."""
+                 preferred_anonymity: str = None, allowed_fails_in_row: int = 3, fails_without_check: int = 2,
+                 dont_store_data: bool = False):
+        """
+        Just there to add get and remove proxies in a special format with the option to json_file them in a file.
+        :param json_file: The file to store the proxies in.
+        :param preferred_protocol: The protocol that the proxy should have.
+        :param preferred_country: The country that the proxy should be from.
+        :param preferred_anonymity: The anonymity level that the proxy should have.
+        :param allowed_fails_in_row: The amount of times a proxy can fail in a row before it gets removed.
+        :param fails_without_check: The amount of times a proxy can fail without being checked before it gets removed.
+        :param dont_store_data: If the data should be stored in the json file or not. NOT RECOMMENDED!
+        """
+        self.dont_store_data = dont_store_data
 
         self.allowed_fails_in_row = allowed_fails_in_row
         self.fails_without_check = fails_without_check
@@ -36,9 +46,40 @@ class ProxyDataManager:
         self.json_file.touch(exist_ok=True)
         return []
 
-    def update_data(self):
+    def _write_data(self):
+        if not self.dont_store_data:
+            write_json(self.json_file, self.proxies)
+
+    def _rm_duplicate_proxies(self):
+        """Remove duplicate proxies from the list which have the same URL,
+        keeping the one with the most data."""
+        seen = {}
+        for proxy in self.proxies:
+            url = proxy['url']
+            if url in seen:
+                existing_proxy = seen[url]
+                if (proxy['times_failed'] + proxy['times_succeed']) > (
+                        existing_proxy['times_failed'] + existing_proxy['times_succeed']):
+                    seen[url] = proxy
+            else:
+                seen[url] = proxy
+        self.proxies = list(seen.values())
+
+    def update_data(self, remove_duplicates: bool = True):
         """Updates the storage file of the proxies and also cleans it up al little."""
-        write_json(self.json_file, self.proxies)
+        if remove_duplicates:
+            self._rm_duplicate_proxies()
+        self._write_data()
+
+    def force_rm_last_proxy(self):
+        """
+        LAST USED PROXY WILL BE REMOVED! Good for sorting out all the bad proxies.
+
+        Check len(manager) before and after to see if it worked.
+        If no proxy left, you should try other sources for proxy.
+        """
+        if self.last_proxy_index is not None:
+            self.rm_proxy(self.last_proxy_index)
 
     def feedback_proxy(self, success: bool):
         if self.last_proxy_index is None or self.last_proxy_index >= len(self.proxies):
@@ -66,10 +107,14 @@ class ProxyDataManager:
                 if self.proxies[self.last_proxy_index]["times_failed"] / total > 0.5:
                     self.rm_proxy(self.last_proxy_index)
         # Update the JSON file with the current state of proxies
-        write_json(self.json_file, self.proxies)
+        self._write_data()
 
     def add_proxy(self, proxy: IP, country: str | None = None, anonymity: str | None = None):
-        """Add a proxy to the list with the right format"""
+        """
+        Add a proxy to the list with the right format.
+
+        IT IS NECESSARY TO CALL THE update_data METHOD AFTER ADDING A PROXY OR MORE!
+        """
         proxy_data = {
             "protocol": proxy.protocol,
             "ip": proxy.ip,
@@ -83,21 +128,6 @@ class ProxyDataManager:
         }
         self.proxies.append(proxy_data)
 
-    def rm_duplicate_proxies(self):
-        """Remove duplicate proxies from the list which have the same URL,
-        keeping the one with the most data."""
-        seen = {}
-        for proxy in self.proxies:
-            url = proxy['url']
-            if url in seen:
-                existing_proxy = seen[url]
-                if (proxy['times_failed'] + proxy['times_succeed']) > (
-                        existing_proxy['times_failed'] + existing_proxy['times_succeed']):
-                    seen[url] = proxy
-            else:
-                seen[url] = proxy
-        self.proxies = list(seen.values())
-
     def rm_proxy(self, index: int):
         try:
             self.proxies.pop(index)
@@ -105,11 +135,11 @@ class ProxyDataManager:
             raise IndexError("Proxy does not exist")
         if self.last_proxy_index is not None and index < self.last_proxy_index:
             self.last_proxy_index -= 1
-        write_json(self.json_file, self.proxies)
+        self._write_data()
 
     def rm_all_proxies(self):
         self.proxies = []
-        write_json(self.json_file, self.proxies)
+        self._write_data()
 
     def get_random_proxy(self, return_type: str = "url") -> str | None:
         """Won't return the same proxy twice in a row, except when there is only one proxy. Will return None if there are None."""
@@ -137,3 +167,15 @@ class ProxyDataManager:
         selected_proxy = choice(preferred_proxies)
         self.last_proxy_index = self.proxies.index(selected_proxy)
         return selected_proxy[return_type]
+
+    def __len__(self):
+        return len(self.proxies)
+
+
+if __name__ == '__main__':
+    manager = ProxyDataManager()
+    manager.add_proxy(IP(url="http://123.123.123.123:2020"))
+
+    manager.update_data(remove_duplicates=True)
+    print(manager.get_random_proxy())
+    print(len(manager))
