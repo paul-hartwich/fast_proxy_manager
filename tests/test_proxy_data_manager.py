@@ -42,7 +42,7 @@ class TestProxyDataManager(unittest.TestCase):
 
     def test_rm_duplicate_proxies(self):
         self.manager.add_proxy(IP(url="http://192.168.0.1:8080"))
-        self.manager.rm_duplicate_proxies()
+        self.manager.update_data(remove_duplicates=True)
         self.assertEqual(len(self.manager.proxies), 3)
 
     def test_feedback_proxy_remove_on_failure(self):
