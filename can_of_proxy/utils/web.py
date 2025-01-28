@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+from .ip import IP
 
 
 async def get_request(url: str, proxy: str) -> aiohttp.ClientResponse:

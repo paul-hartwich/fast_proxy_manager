@@ -1,3 +1,4 @@
+import time
 from random import choice
 from pathlib import Path
 from utils import read_json, write_json, IP
@@ -40,6 +41,9 @@ class ProxyDataManager:
         write_json(self.json_file, self.proxies)
 
     def feedback_proxy(self, success: bool):
+        if self.last_proxy_index is None or self.last_proxy_index >= len(self.proxies):
+            return
+
         # Check if the proxy request was successful or not
         if success is True:
             # Increment the success count and reset the consecutive failure count
@@ -94,12 +98,12 @@ class ProxyDataManager:
                 seen[url] = proxy
         self.proxies = list(seen.values())
 
-    def rm_proxy(self, number: int):
+    def rm_proxy(self, index: int):
         try:
-            self.proxies.pop(number - 1)
+            self.proxies.pop(index)
         except IndexError:
             raise IndexError("Proxy does not exist")
-        if self.last_proxy_index is not None and number - 1 < self.last_proxy_index:
+        if self.last_proxy_index is not None and index < self.last_proxy_index:
             self.last_proxy_index -= 1
         write_json(self.json_file, self.proxies)
 
@@ -113,7 +117,6 @@ class ProxyDataManager:
             self.last_proxy_index = 0
             return self.proxies[0][return_type]
 
-        # check if there are any proxies left with the preferred protocol, country and anonymity
         preferred_proxies = [
             proxy for proxy in self.proxies
             if (not self.preferred_protocol or proxy["protocol"] == self.preferred_protocol) and
@@ -124,16 +127,13 @@ class ProxyDataManager:
         if not preferred_proxies:
             return None
 
+        # Exclude the last used proxy if there is more than one preferred proxy
+        if len(preferred_proxies) > 1 and self.last_proxy_index is not None:
+            preferred_proxies = [
+                proxy for proxy in preferred_proxies
+                if self.proxies.index(proxy) != self.last_proxy_index
+            ]
+
         selected_proxy = choice(preferred_proxies)
         self.last_proxy_index = self.proxies.index(selected_proxy)
         return selected_proxy[return_type]
-
-
-if __name__ == '__main__':
-    manager = ProxyDataManager(allowed_fails_in_row=3, fails_without_check=2)
-    manager.add_proxy(IP(url="http://123.123.123.123:5020"))
-    manager.rm_duplicate_proxies()
-    manager.update_data()
-
-    print(manager.get_random_proxy())
-    manager.feedback_proxy(False)

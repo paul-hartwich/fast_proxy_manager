@@ -1,65 +1,85 @@
 import unittest
 from pathlib import Path
 import sys
+import os
 
-sys.path.append('C:/Users/pauln/PycharmProjects/can-of-proxy/can_of_proxy')
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'can_of_proxy'))
 
 from can_of_proxy.proxy_data_manager import ProxyDataManager
-from can_of_proxy.utils import read_json, write_json
+from can_of_proxy.utils.file_ops import read_json, write_json
+from can_of_proxy.utils.web import IP
 
 
 class TestProxyDataManager(unittest.TestCase):
     def setUp(self):
-        self.test_file = Path("test.json")
-        self.manager = ProxyDataManager(store=self.test_file)
-        print("Initial state:", self._read_file())
+        self.test_file = Path("test_proxies.json")
+        self.manager = ProxyDataManager(json_file=self.test_file)
+        self.manager.add_proxy(IP(url="http://192.168.0.1:8080"))
+        self.manager.add_proxy(IP(url="http://192.168.0.2:8080"))
+        self.manager.add_proxy(IP(url="http://192.168.0.3:8080"))
 
     def tearDown(self):
         if self.test_file.exists():
             self.test_file.unlink()
 
-    def _read_file(self):
-        if self.test_file.exists() and self.test_file.stat().st_size > 0:
-            return read_json(self.test_file)
-        return "File does not exist or is empty"
-
     def test_add_proxy(self):
-        self.manager.add_proxy("192.168.0.1", 8080, "http", "US", "high")
-        print("After adding proxy:", self._read_file())
-        self.assertEqual(len(self.manager.proxies), 1)
-        self.assertEqual(self.manager.proxies[0]["ip"], "192.168.0.1")
-
-    def test_rm_proxy(self):
-        self.manager.add_proxy("192.168.0.1", 8080, "http", "US", "high")
-        self.manager.rm_proxy(1)
-        print("After removing proxy:", self._read_file())
-        self.assertEqual(len(self.manager.proxies), 0)
+        self.manager.add_proxy(IP(url="http://192.168.0.4:8080"))
+        self.assertEqual(len(self.manager.proxies), 4)
+        self.assertEqual(self.manager.proxies[-1]["ip"], "192.168.0.4")
 
     def test_rm_all_proxies(self):
-        self.manager.add_proxy("192.168.0.1", 8080, "http", "US", "high")
-        self.manager.add_proxy("192.168.0.2", 8080, "http", "US", "high")
         self.manager.rm_all_proxies()
-        print("After removing all proxies:", self._read_file())
         self.assertEqual(len(self.manager.proxies), 0)
 
-    def test_get_proxy(self):
-        self.manager.add_proxy("192.168.0.1", 8080, "http", "US", "high")
-        proxy = self.manager.get_proxy(1)
-        print("After getting proxy:", self._read_file())
-        self.assertEqual(proxy["ip"], "192.168.0.1")
-
     def test_get_random_proxy(self):
-        self.manager.add_proxy("192.168.0.1", 8080, "http", "US", "high")
         proxy = self.manager.get_random_proxy()
-        print("After getting random proxy:", self._read_file())
-        self.assertEqual(proxy["ip"], "192.168.0.1")
+        self.assertIn(proxy, [p["url"] for p in self.manager.proxies])
 
     def test_rm_duplicate_proxies(self):
-        self.manager.add_proxy("192.168.0.1", 8080, "http", "US", "high")
-        self.manager.add_proxy("192.168.0.1", 8080, "http", "US", "high")
+        self.manager.add_proxy(IP(url="http://192.168.0.1:8080"))
         self.manager.rm_duplicate_proxies()
-        print("After removing duplicate proxies:", self._read_file())
-        self.assertEqual(len(self.manager.proxies), 1)
+        self.assertEqual(len(self.manager.proxies), 3)
+
+    def test_feedback_proxy_success(self):
+        self.manager.get_random_proxy()
+        self.manager.feedback_proxy(True)
+        self.assertEqual(self.manager.proxies[self.manager.last_proxy_index]["times_succeed"], 1)
+        self.assertEqual(self.manager.proxies[self.manager.last_proxy_index]["times_failed_in_row"], 0)
+
+    def test_feedback_proxy_failure(self):
+        self.manager.get_random_proxy()
+        self.manager.feedback_proxy(False)
+        self.assertEqual(self.manager.proxies[self.manager.last_proxy_index]["times_failed"], 1)
+        self.assertEqual(self.manager.proxies[self.manager.last_proxy_index]["times_failed_in_row"], 1)
+
+    def test_feedback_proxy_remove_on_failure(self):
+        self.manager.get_random_proxy()
+        for _ in range(self.manager.allowed_fails_in_row + 1):
+            self.manager.feedback_proxy(False)
+        self.assertEqual(len(self.manager.proxies), 2)
+
+    def test_feedback_proxy_remove_on_high_failure_rate(self):
+        self.manager.get_random_proxy()
+        for _ in range(self.manager.fails_without_check + 1):
+            self.manager.feedback_proxy(False)
+        self.assertEqual(len(self.manager.proxies), 2)
+
+    def test_get_random_proxy_empty_list(self):
+        self.manager.rm_all_proxies()
+        proxy = self.manager.get_random_proxy()
+        self.assertIsNone(proxy)
+
+    def test_feedback_proxy_no_proxies(self):
+        self.manager.rm_all_proxies()
+        self.manager.feedback_proxy(True)  # Should not raise an error
+
+    def test_feedback_proxy_invalid_index(self):
+        self.manager.last_proxy_index = 10  # Invalid index
+        self.manager.feedback_proxy(False)  # Should not raise an error
+
+    def test_rm_proxy_invalid_index(self):
+        with self.assertRaises(IndexError):
+            self.manager.rm_proxy(10)  # Invalid index
 
 
 if __name__ == "__main__":
