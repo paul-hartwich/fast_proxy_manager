@@ -56,7 +56,7 @@ class ProxyDataManager:
             # Check if the consecutive failure count exceeds the allowed limit
             if self.proxies[self.last_proxy_index]["times_failed_in_row"] > self.allowed_fails_in_row:
                 # Remove the proxy if it has failed too many times consecutively
-                self.rm_proxy(self.last_proxy_index + 1)
+                self.rm_proxy(self.last_proxy_index)
             # Check if the total failure count exceeds the allowed limit without a check
             elif self.proxies[self.last_proxy_index][
                 "times_failed"] > self.fails_without_check:
@@ -64,7 +64,7 @@ class ProxyDataManager:
                     "times_succeed"]
                 # Remove the proxy if the failure rate is more than 50%
                 if self.proxies[self.last_proxy_index]["times_failed"] / total > 0.5:
-                    self.rm_proxy(self.last_proxy_index + 1)
+                    self.rm_proxy(self.last_proxy_index)
         # Update the JSON file with the current state of proxies
         write_json(self.json_file, self.proxies)
 

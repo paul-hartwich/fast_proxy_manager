@@ -31,6 +31,11 @@ class TestProxyDataManager(unittest.TestCase):
         self.manager.rm_all_proxies()
         self.assertEqual(len(self.manager.proxies), 0)
 
+    def test_rm_proxy(self):
+        self.manager.rm_proxy(1)
+        self.assertEqual(len(self.manager.proxies), 2)
+        self.assertEqual(self.manager.proxies[1]["ip"], "192.168.0.3")
+
     def test_get_random_proxy(self):
         proxy = self.manager.get_random_proxy()
         self.assertIn(proxy, [p["url"] for p in self.manager.proxies])
@@ -39,18 +44,6 @@ class TestProxyDataManager(unittest.TestCase):
         self.manager.add_proxy(IP(url="http://192.168.0.1:8080"))
         self.manager.rm_duplicate_proxies()
         self.assertEqual(len(self.manager.proxies), 3)
-
-    def test_feedback_proxy_success(self):
-        self.manager.get_random_proxy()
-        self.manager.feedback_proxy(True)
-        self.assertEqual(self.manager.proxies[self.manager.last_proxy_index]["times_succeed"], 1)
-        self.assertEqual(self.manager.proxies[self.manager.last_proxy_index]["times_failed_in_row"], 0)
-
-    def test_feedback_proxy_failure(self):
-        self.manager.get_random_proxy()
-        self.manager.feedback_proxy(False)
-        self.assertEqual(self.manager.proxies[self.manager.last_proxy_index]["times_failed"], 1)
-        self.assertEqual(self.manager.proxies[self.manager.last_proxy_index]["times_failed_in_row"], 1)
 
     def test_feedback_proxy_remove_on_failure(self):
         self.manager.get_random_proxy()
@@ -80,6 +73,20 @@ class TestProxyDataManager(unittest.TestCase):
     def test_rm_proxy_invalid_index(self):
         with self.assertRaises(IndexError):
             self.manager.rm_proxy(10)  # Invalid index
+
+    def test_feedback_proxy_success(self):
+        self.manager.get_random_proxy()
+        initial_index = self.manager.last_proxy_index
+        self.manager.feedback_proxy(True)
+        self.assertEqual(self.manager.proxies[initial_index]["times_succeed"], 1)
+        self.assertEqual(self.manager.proxies[initial_index]["times_failed_in_row"], 0)
+
+    def test_feedback_proxy_failure(self):
+        self.manager.get_random_proxy()
+        initial_index = self.manager.last_proxy_index
+        self.manager.feedback_proxy(False)
+        self.assertEqual(self.manager.proxies[initial_index]["times_failed"], 1)
+        self.assertEqual(self.manager.proxies[initial_index]["times_failed_in_row"], 1)
 
 
 if __name__ == "__main__":
