@@ -1,5 +1,7 @@
 # Can of Proxy
 
+[![CodeFactor](https://www.codefactor.io/repository/github/paul-hartwich/can_of_proxy/badge)](https://www.codefactor.io/repository/github/paul-hartwich/can_of_proxy)
+
 ## Installation
 
 ```bash
