@@ -17,7 +17,7 @@ def _split_url(ip_string):
     if not ip.strip():  # Check for empty or whitespace-only IP
         raise ValueError("Input must contain at least an IP address.")
 
-    return protocol, ip, port
+    return protocol, ip, int(port)
 
 
 def _validate_port(port):
@@ -84,9 +84,9 @@ class IP:
                 raise ValueError("No IP provided")
 
             if port:
-                self.port = port
+                self.port = int(port)
             if protocol:
-                self.protocol = protocol
+                self.protocol = str(protocol)
 
         self._validate_everything()
 
