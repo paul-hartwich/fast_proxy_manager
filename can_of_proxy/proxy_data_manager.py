@@ -13,21 +13,23 @@ def _validate_protocol(protocol: str) -> str:
 class ProxyDataManager:
     def __init__(self, json_file: Path = True, preferred_protocol: str = "http", preferred_country: str = None,
                  preferred_anonymity: str = None, allowed_fails_in_row: int = 3, fails_without_check: int = 2,
-                 dont_store_data: bool = False):
+                 dont_store_data: bool = False, percent_failed_to_remove: float = 0.5):
         """
         Just there to add get and remove proxies in a special format with the option to json_file them in a file.
         :param json_file: The file to store the proxies in.
         :param preferred_protocol: The protocol that the proxy should have.
         :param preferred_country: The country that the proxy should be from.
         :param preferred_anonymity: The anonymity level that the proxy should have.
-        :param allowed_fails_in_row: The amount of times a proxy can fail in a row before it gets removed.
-        :param fails_without_check: The amount of times a proxy can fail without being checked before it gets removed.
-        :param dont_store_data: If the data should be stored in the json file or not. NOT RECOMMENDED!
+        :param allowed_fails_in_row: The number of times a proxy can fail in a row before it gets removed.
+        :param fails_without_check: The number of times a proxy can fail without being checked before it gets removed.
+        :param dont_store_data: If the data should be stored in the JSON file or not. NOT RECOMMENDED!
+        :param percent_failed_to_remove: The percentage of failed requests that a proxy can have before it gets removed.
         """
         self.dont_store_data = dont_store_data
 
         self.allowed_fails_in_row = allowed_fails_in_row
         self.fails_without_check = fails_without_check
+        self.percent_failed_to_remove = percent_failed_to_remove
 
         self.preferred_protocol = _validate_protocol(preferred_protocol)
         self.preferred_country = preferred_country
@@ -38,12 +40,14 @@ class ProxyDataManager:
         self.last_proxy_index = None
 
     def _load_proxies(self):
-        if self.json_file.exists() and self.json_file.stat().st_size > 0:
-            try:
-                return read_json(self.json_file)
-            except JSONDecodeError:
-                return []
-        self.json_file.touch(exist_ok=True)
+        if not self.dont_store_data:
+            if self.json_file.exists() and self.json_file.stat().st_size > 0:
+                try:
+                    return read_json(self.json_file)
+                except JSONDecodeError:
+                    return []
+            self.json_file.touch(exist_ok=True)
+            return []
         return []
 
     def _write_data(self):
@@ -104,7 +108,7 @@ class ProxyDataManager:
                 total = self.proxies[self.last_proxy_index]["times_failed"] + self.proxies[self.last_proxy_index][
                     "times_succeed"]
                 # Remove the proxy if the failure rate is more than 50%
-                if self.proxies[self.last_proxy_index]["times_failed"] / total > 0.5:
+                if self.proxies[self.last_proxy_index]["times_failed"] / total > self.percent_failed_to_remove:
                     self.rm_proxy(self.last_proxy_index)
         # Update the JSON file with the current state of proxies
         self._write_data()
@@ -173,9 +177,11 @@ class ProxyDataManager:
 
 
 if __name__ == '__main__':
-    manager = ProxyDataManager()
+    manager = ProxyDataManager(dont_store_data=True)
+    manager.add_proxy(IP(url="http://123.123.123.123:1020"))
     manager.add_proxy(IP(url="http://123.123.123.123:2020"))
+    manager.add_proxy(IP(url="http://123.123.123.123:3020"))
 
     manager.update_data(remove_duplicates=True)
     print(manager.get_random_proxy())
-    print(len(manager))
+    manager.feedback_proxy(False)
