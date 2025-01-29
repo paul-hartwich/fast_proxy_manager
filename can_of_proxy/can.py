@@ -2,8 +2,8 @@ from typing import *
 
 
 class Can:
-    def __init__(self, obj: Any):
-        self.obj = obj
+    def __init__(self):
+        pass
 
     def get_proxy(self, number: int) -> Any:
         pass
