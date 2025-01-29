@@ -15,8 +15,6 @@ class TestProxyDataManager(unittest.TestCase):
         self.test_file = Path("test_proxies.json")
         self.manager = ProxyDataManager(json_file=self.test_file)
         self.manager.add_proxy(IP(url="http://192.168.0.1:8080"))
-        self.manager.add_proxy(IP(url="http://192.168.0.2:8080"))
-        self.manager.add_proxy(IP(url="http://192.168.0.3:8080"))
 
     def tearDown(self):
         if self.test_file.exists():
@@ -24,7 +22,7 @@ class TestProxyDataManager(unittest.TestCase):
 
     def test_add_proxy(self):
         self.manager.add_proxy(IP(url="http://192.168.0.4:8080"))
-        self.assertEqual(len(self.manager.proxies), 4)
+        self.assertEqual(len(self.manager.proxies), 2)
         self.assertEqual(self.manager.proxies[-1]["ip"], "192.168.0.4")
 
     def test_rm_all_proxies(self):
@@ -32,9 +30,10 @@ class TestProxyDataManager(unittest.TestCase):
         self.assertEqual(len(self.manager.proxies), 0)
 
     def test_rm_proxy(self):
+        self.manager.add_proxy(IP(url="http://192.168.0.2:8080"))
         self.manager.rm_proxy(1)
-        self.assertEqual(len(self.manager.proxies), 2)
-        self.assertEqual(self.manager.proxies[1]["ip"], "192.168.0.3")
+        self.assertEqual(len(self.manager.proxies), 1)
+        self.assertEqual(self.manager.proxies[0]["ip"], "192.168.0.1")
 
     def test_get_random_proxy(self):
         proxy = self.manager.get_random_proxy()
@@ -43,19 +42,19 @@ class TestProxyDataManager(unittest.TestCase):
     def test_rm_duplicate_proxies(self):
         self.manager.add_proxy(IP(url="http://192.168.0.1:8080"))
         self.manager.update_data(remove_duplicates=True)
-        self.assertEqual(len(self.manager.proxies), 3)
+        self.assertEqual(len(self.manager.proxies), 1)
 
     def test_feedback_proxy_remove_on_failure(self):
         self.manager.get_random_proxy()
         for _ in range(self.manager.allowed_fails_in_row + 1):
             self.manager.feedback_proxy(False)
-        self.assertEqual(len(self.manager.proxies), 2)
+        self.assertEqual(len(self.manager.proxies), 0)
 
     def test_feedback_proxy_remove_on_high_failure_rate(self):
         self.manager.get_random_proxy()
         for _ in range(self.manager.fails_without_check + 1):
             self.manager.feedback_proxy(False)
-        self.assertEqual(len(self.manager.proxies), 2)
+        self.assertEqual(len(self.manager.proxies), 0)
 
     def test_get_random_proxy_empty_list(self):
         self.manager.rm_all_proxies()

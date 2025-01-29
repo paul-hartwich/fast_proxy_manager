@@ -4,24 +4,31 @@ from utils import read_json, write_json, IP
 from json import JSONDecodeError
 
 
-def _validate_protocol(protocol: str | None) -> str | None:
-    if protocol is not None and protocol not in ("http", "https", "socks4", "socks5"):
-        raise ValueError("Invalid protocol used to create ProxyDataManager")
-    return protocol
+def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
+    if protocols is None:
+        return None
+    if isinstance(protocols, str):
+        protocols = [protocols]
+    for protocol in protocols:
+        if protocol not in ("http", "https", "socks4", "socks5"):
+            raise ValueError("Invalid protocol used to create ProxyDataManager")
+    return protocols
 
 
 class ProxyDataManager:
-    def __init__(self, json_file: Path | None = None, preferred_protocol: str | None = None,
-                 preferred_country: str | None = None,
-                 preferred_anonymity: str | None = None, allowed_fails_in_row: int = 3, fails_without_check: int = 2,
+    def __init__(self, json_file: Path | None = None, preferred_protocol: list[str] | str | None = None,
+                 preferred_country: list[str] | str | None = None,
+                 preferred_anonymity: list[str] | str | None = None, allowed_fails_in_row: int = 3,
+                 fails_without_check: int = 2,
                  dont_store_data: bool = False, percent_failed_to_remove: float = 0.5):
         self.dont_store_data = dont_store_data
         self.allowed_fails_in_row = allowed_fails_in_row
         self.fails_without_check = fails_without_check
         self.percent_failed_to_remove = percent_failed_to_remove
         self.preferred_protocol = _validate_protocol(preferred_protocol)
-        self.preferred_country = preferred_country
-        self.preferred_anonymity = preferred_anonymity
+        self.preferred_country = preferred_country if isinstance(preferred_country, list) else [preferred_country]
+        self.preferred_anonymity = preferred_anonymity if isinstance(preferred_anonymity, list) else [
+            preferred_anonymity]
         self.json_file = Path(json_file) if json_file else Path("proxies.json")
         self.proxies = self._load_proxies()
         self.last_proxy_index = None
@@ -124,9 +131,9 @@ class ProxyDataManager:
 
         preferred_proxies = [
             proxy for proxy in self.proxies
-            if (not self.preferred_protocol or proxy["protocol"] == self.preferred_protocol) and
-               (not self.preferred_country or proxy["country"] == self.preferred_country) and
-               (not self.preferred_anonymity or proxy["anonymity"] == self.preferred_anonymity)
+            if (not self.preferred_protocol or proxy["protocol"] in self.preferred_protocol) and
+               (not self.preferred_country or proxy["country"] in self.preferred_country) and
+               (not self.preferred_anonymity or proxy["anonymity"] in self.preferred_anonymity)
         ]
 
         if not preferred_proxies:
