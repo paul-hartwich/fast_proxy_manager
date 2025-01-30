@@ -2,6 +2,7 @@ from random import choice
 from pathlib import Path
 from utils import read_json, write_json, IP
 from json import JSONDecodeError
+from typing import Optional
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
@@ -16,25 +17,31 @@ def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
 
 
 class ProxyDataManager:
-    def __init__(self, json_file: Path | None = None, preferred_protocol: list[str] | str | None = None,
-                 preferred_country: list[str] | str | None = None,
-                 preferred_anonymity: list[str] | str | None = None, allowed_fails_in_row: int = 3,
+    def __init__(self, json_file: Optional[Path] = Path("proxies.json"),
+                 allowed_fails_in_row: int = 3,
                  fails_without_check: int = 2,
-                 dont_store_data: bool = False, percent_failed_to_remove: float = 0.5):
-        self.dont_store_data = dont_store_data
+                 percent_failed_to_remove: float = 0.5):
+        """
+        Get add and remove proxies from a list with some extra features.
+
+        :param json_file: Highly recommended to use it.
+        Path to a store file with proxy data. If set to None, it will not store data in a file.
+        :param allowed_fails_in_row: How many times a proxy can fail in a row before being removed.
+        :param fails_without_check: How many times a proxy can fail before being checked for percentage of fails to remove.
+        :param percent_failed_to_remove: Percentage of fails to remove a proxy.
+        Example: 0.5 means 50% of tries are fails, if higher than that it gets removed.
+        """
+
         self.allowed_fails_in_row = allowed_fails_in_row
         self.fails_without_check = fails_without_check
         self.percent_failed_to_remove = percent_failed_to_remove
-        self.preferred_protocol = _validate_protocol(preferred_protocol)
-        self.preferred_country = preferred_country if isinstance(preferred_country, list) else [preferred_country]
-        self.preferred_anonymity = preferred_anonymity if isinstance(preferred_anonymity, list) else [
-            preferred_anonymity]
-        self.json_file = Path(json_file) if json_file else Path("proxies.json")
+
+        self.json_file = json_file if json_file else None
         self.proxies = self._load_proxies()
         self.last_proxy_index = None
 
     def _load_proxies(self):
-        if not self.dont_store_data:
+        if self.json_file:
             if self.json_file.exists() and self.json_file.stat().st_size > 0:
                 try:
                     return read_json(self.json_file)
@@ -44,7 +51,7 @@ class ProxyDataManager:
         return []
 
     def _write_data(self):
-        if not self.dont_store_data:
+        if self.json_file:
             write_json(self.json_file, self.proxies)
 
     def _rm_duplicate_proxies(self):
@@ -65,6 +72,7 @@ class ProxyDataManager:
         self.proxies = list(seen.values())
 
     def update_data(self, remove_duplicates: bool = True):
+        """It has to be called after proxies got added. NOT REMOVED! (already handled)"""
         if remove_duplicates:
             self._rm_duplicate_proxies()
         self._write_data()
@@ -124,16 +132,25 @@ class ProxyDataManager:
         self.proxies = []
         self._write_data()
 
-    def get_random_proxy(self, return_type: str = "url") -> str | None:
+    def get_proxy(self, return_type: str = "url", preferred_protocol: list[str] | str | None = None,
+                  preferred_country: list[str] | str | None = None,
+                  preferred_anonymity: list[str] | str | None = None, ) -> str | None:
+        """Return a random proxy from the list. If no proxy is found, return None."""
+
+        preferred_protocol = _validate_protocol(preferred_protocol)
+        preferred_country = preferred_country if isinstance(preferred_country, list) else [preferred_country]
+        preferred_anonymity = preferred_anonymity if isinstance(preferred_anonymity, list) else [
+            preferred_anonymity]
+
         if len(self.proxies) == 1:
             self.last_proxy_index = 0
             return self.proxies[0][return_type]
 
         preferred_proxies = [
             proxy for proxy in self.proxies
-            if (not self.preferred_protocol or proxy["protocol"] in self.preferred_protocol) and
-               (not self.preferred_country or proxy["country"] in self.preferred_country) and
-               (not self.preferred_anonymity or proxy["anonymity"] in self.preferred_anonymity)
+            if (not preferred_protocol or proxy["protocol"] in preferred_protocol) and
+               (not preferred_country or proxy["country"] in preferred_country) and
+               (not preferred_anonymity or proxy["anonymity"] in preferred_anonymity)
         ]
 
         if not preferred_proxies:

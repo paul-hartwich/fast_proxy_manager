@@ -1,4 +1,4 @@
-from .web import get_request
+from .get import get_request
 
 
 def http_github():

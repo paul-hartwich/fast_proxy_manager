@@ -60,8 +60,8 @@ class IP:
     def __init__(self, protocol: str = None, ip: str = None, port: int | str = None, url: str = None):
         """
         Simple class to handle IP addresses with protocols and ports.
-        Very basic and general purpose.
-        No problem if any part is missing, it won't cause an error.
+
+        When returning the URL, it will return url in format **protocol://ip:port** as str.
 
         :param protocol: Like http, https, socks4, socks5
         :param ip: has to be in format 255.255.255.255

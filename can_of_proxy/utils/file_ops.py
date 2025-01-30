@@ -1,12 +1,10 @@
-import json
+import orjson
 from pathlib import Path
 
-
 def read_json(file: Path):
-    with open(file, "r") as f:
-        return json.load(f)
-
+    with open(file, "rb") as f:
+        return orjson.loads(f.read())
 
 def write_json(file: Path, data):
-    with open(file, "w") as f:
-        json.dump(data, f, indent=4)
+    with open(file, "wb") as f:
+        f.write(orjson.dumps(data, option=orjson.OPT_INDENT_2))
