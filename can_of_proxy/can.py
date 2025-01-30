@@ -1,6 +1,6 @@
 from typing import Optional
 
-from proxy_data_manager import ProxyDataManager
+from proxy_data_manager import ProxyDataManager, NoProxyAvailable
 from yarl import URL
 from pathlib import Path
 from utils import get
@@ -39,6 +39,8 @@ class Can:
     def get_request(self, session: Optional[aiohttp.ClientSession]) -> aiohttp.ClientResponse:
         """New session if Session not provided."""
         proxy = self.manager.get_proxy()
+        if proxy is None:
+            raise NoProxyAvailable("Request stopped because no proxy is available.")
         content = get.get_request(proxy, session)
         if content.status == 200:
             self.manager.feedback_proxy(True)

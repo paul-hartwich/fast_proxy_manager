@@ -15,6 +15,15 @@ class ProxyDict(TypedDict):
     anonymity: str | None
 
 
+class NoProxyAvailable(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        return f"NoProxyAvailable: {self.message}"
+
+
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
     if protocols is None:
         return None
@@ -136,8 +145,6 @@ class ProxyDataManager:
         if isinstance(proxies, URL):
             proxy_data = {
                 "protocol": proxies.scheme,
-                "ip": proxies.host,
-                "port": proxies.port,
                 "url": str(proxies),
                 "country": country,
                 "anonymity": anonymity,
@@ -151,8 +158,6 @@ class ProxyDataManager:
             for proxy in proxies:
                 proxy_data = {
                     "protocol": proxy.scheme,
-                    "ip": proxy.host,
-                    "port": proxy.port,
                     "url": str(proxy),
                     "country": country,
                     "anonymity": anonymity,
@@ -166,8 +171,6 @@ class ProxyDataManager:
             for proxy in proxies:
                 self.proxies.append({
                     "protocol": proxy["url"].scheme,
-                    "ip": proxy["url"].host,
-                    "port": proxy["url"].port,
                     "url": str(proxy["url"]),
                     "country": proxy["country"],
                     "anonymity": proxy["anonymity"],

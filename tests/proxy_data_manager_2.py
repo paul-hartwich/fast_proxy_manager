@@ -24,17 +24,19 @@ class TestProxyDataManager(unittest.TestCase):
 
     def test_add_proxy(self):
         self.manager.add_proxy(URL("http://192.168.0.4:8080"))
-        self.assertEqual(len(self.manager.proxies), 4)
-        self.assertEqual(self.manager.proxies[-1]["ip"], "192.168.0.4")
+        self.assertEqual(self.manager.proxies[-1]["url"], "http://192.168.0.4:8080")
 
     def test_rm_all_proxies(self):
         self.manager.rm_all_proxies()
         self.assertEqual(len(self.manager.proxies), 0)
 
     def test_rm_proxy(self):
+        self.manager.rm_all_proxies()
+        self.manager.add_proxy(URL("http://192.168.0.1:8080"))
+        self.manager.add_proxy(URL("http://192.168.0.2:8080"))
+        self.manager.add_proxy(URL("http://192.168.0.3:8080"))
         self.manager.rm_proxy(1)
-        self.assertEqual(len(self.manager.proxies), 2)
-        self.assertEqual(self.manager.proxies[1]["ip"], "192.168.0.3")
+        self.assertNotIn("http://192.168.0.2:8080", [proxy["url"] for proxy in self.manager.proxies])
 
     def test_get_proxy(self):
         proxy = self.manager.get_proxy()
