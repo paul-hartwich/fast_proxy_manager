@@ -214,7 +214,7 @@ class ProxyDataManager:
         ]
 
         if not preferred_proxies:
-            return None
+            raise NoProxyAvailable("No proxy found with the given parameters.")
 
         if len(preferred_proxies) > 1 and self.last_proxy_index is not None:
             preferred_proxies = [

@@ -26,6 +26,7 @@ async def get_request(url: str, proxy: URL, session: aiohttp.ClientSession = Non
     :param session: An aiohttp ClientSession, not required but useful for performance
     :param url: URL to get
     :param proxy: Proxy to use in the format: protocol://ip:port
+    :return: aiohttp ClientResponse
     """
     if session is None:
         async with aiohttp.ClientSession() as session:

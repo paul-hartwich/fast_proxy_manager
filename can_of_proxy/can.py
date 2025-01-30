@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Optional, List
 
-from proxy_data_manager import ProxyDataManager, NoProxyAvailable
+from proxy_data_manager import ProxyDataManager, NoProxyAvailable, ProxyDict
 from yarl import URL
 from pathlib import Path
 from utils import get
@@ -36,17 +36,18 @@ class Can:
                                         fails_without_check=fails_without_check,
                                         percent_failed_to_remove=percent_failed_to_remove)
 
-    def get_request(self, session: Optional[aiohttp.ClientSession]) -> aiohttp.ClientResponse:
+    async def get_request(self, session: Optional[aiohttp.ClientSession]) -> aiohttp.ClientResponse:
         """New session if Session not provided."""
         proxy = self.manager.get_proxy()
         if proxy is None:
-            raise NoProxyAvailable("Request stopped because no proxy is available.")
-        content = get.get_request(proxy, session)
-        if content.status == 200:
+            raise NoProxyAvailable("Request stopped because no proxy was available.")
+
+        response = await get.get_request(proxy, session)
+        if response.status == 200:
             self.manager.feedback_proxy(True)
         else:
             self.manager.feedback_proxy(False)
-        return content
+        return response
 
     def get_proxy(self) -> URL:
         return self.manager.get_proxy()
@@ -58,9 +59,26 @@ class Can:
         """
         self.manager.feedback_proxy(success)
 
-    def add_proxy(self, proxy: URL) -> None:
+    def add_proxy(self,
+                  proxies: URL | list[URL] | list[ProxyDict],
+                  country: str | None = None,
+                  anonymity: str | None = None) -> None:
         """
-        Add a proxy to the manager.
-        :param proxy: Proxy to add.
+        Add a proxy to the list.
+        You can add a list of proxies at once, but all of them will have the same country and anonymity.
+        If a list of dictionaries is used, other params will be ignored and the data will be used from the dictionary.
         """
-        self.manager.add_proxy(proxy)
+        self.manager.add_proxy(proxies, country, anonymity)
+
+    def fetch_proxies(self) -> List[URL] | List[ProxyDict]:
+        """
+        Fetch proxies from the sources.
+        """
+        return self.manager.fetch_proxies()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Handle any cleanup if necessary
+        pass
