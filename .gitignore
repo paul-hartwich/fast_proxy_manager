@@ -2,6 +2,9 @@
 /test/*
 
 */proxies.json
+*/test.json
+*/proxies.msgpack
+*/test.msgpack
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

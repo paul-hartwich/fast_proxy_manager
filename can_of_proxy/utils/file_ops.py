@@ -1,10 +1,12 @@
-import orjson
+import msgpack
 from pathlib import Path
 
-def read_json(file: Path):
-    with open(file, "rb") as f:
-        return orjson.loads(f.read())
 
-def write_json(file: Path, data):
+def read_msgpack(file: Path) -> list[dict]:
+    with open(file, "rb") as f:
+        return msgpack.unpackb(f.read(), raw=False)  # raw=False ensures string keys
+
+
+def write_msgpack(file: Path, data: list[dict]):
     with open(file, "wb") as f:
-        f.write(orjson.dumps(data, option=orjson.OPT_INDENT_2))
+        f.write(msgpack.packb(data, use_bin_type=True))  # use_bin_type=True for compatibility

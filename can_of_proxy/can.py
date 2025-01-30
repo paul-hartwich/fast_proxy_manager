@@ -1,5 +1,5 @@
 from proxy_data_manager import ProxyDataManager
-from utils import IP
+from yarl import URL
 from pathlib import Path
 
 
@@ -20,8 +20,8 @@ class Can:
         :param preferred_anonymity: It can later be changed when getting a proxy.
         :param allowed_fails_in_row: How many times a proxy can fail in a row before being removed.
         :param fails_without_check: How many times a proxy can fail before being checked for percentage of fails to remove.
-        :param dont_store_data:
-        :param percent_failed_to_remove:
+        :param percent_failed_to_remove: Percentage of fails to remove a proxy.
+        Example: 0.5 means 50% of tries are fails, if higher than that it gets removed.
         """
 
         self.preferred_protocol = preferred_protocol
@@ -32,5 +32,5 @@ class Can:
                                         fails_without_check=fails_without_check,
                                         percent_failed_to_remove=percent_failed_to_remove)
 
-    def get_proxy(self) -> IP:
+    def get_proxy(self) -> URL:
         return self.manager.get_proxy()

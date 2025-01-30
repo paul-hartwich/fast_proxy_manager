@@ -1,10 +1,10 @@
 import aiohttp
 import asyncio
-from .ip import IP
+from yarl import URL
 from typing import List
 
 
-async def get_request(url: str, proxy: IP, session: aiohttp.ClientSession = None) -> aiohttp.ClientResponse:
+async def get_request(url: str, proxy: URL, session: aiohttp.ClientSession = None) -> aiohttp.ClientResponse:
     """
     Does not require proxy or handle exceptions.
     Basic GET request with aiohttp and async/await.
@@ -30,7 +30,7 @@ async def get_request(url: str, proxy: IP, session: aiohttp.ClientSession = None
                 return response
 
 
-async def test_proxy(session: aiohttp.ClientSession, proxy: IP, timeout: int, retries: int) -> bool:
+async def test_proxy(session: aiohttp.ClientSession, proxy: URL, timeout: int, retries: int) -> bool:
     """
     Test a single proxy to see if it is valid.
 
@@ -51,7 +51,7 @@ async def test_proxy(session: aiohttp.ClientSession, proxy: IP, timeout: int, re
     return False
 
 
-async def mass_testing(proxies: List[IP], timeout: int = 10, retries: int = 0, simultaneous_requests: int = 10) -> \
+async def mass_testing(proxies: List[URL], timeout: int = 10, retries: int = 0, simultaneous_requests: int = 10) -> \
         List[str]:
     """
     Test a list of proxies and return the valid ones.
@@ -78,7 +78,7 @@ async def mass_testing(proxies: List[IP], timeout: int = 10, retries: int = 0, s
     return valid_proxies
 
 
-async def _test_proxy_with_semaphore(session: aiohttp.ClientSession, proxy: IP, timeout: int, retries: int,
+async def _test_proxy_with_semaphore(session: aiohttp.ClientSession, proxy: URL, timeout: int, retries: int,
                                      semaphore: asyncio.Semaphore) -> bool:
     """
     Test a proxy while respecting the semaphore limit.

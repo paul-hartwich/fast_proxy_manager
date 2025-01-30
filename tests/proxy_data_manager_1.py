@@ -6,22 +6,23 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'can_of_proxy'))
 
 from can_of_proxy.proxy_data_manager import ProxyDataManager
-from can_of_proxy.utils.file_ops import read_json, write_json
-from can_of_proxy.utils.get import IP
+from can_of_proxy.utils.file_ops import read_msgpack, write_msgpack
+from yarl import URL
 
 
 class TestProxyDataManager(unittest.TestCase):
     def setUp(self):
         self.test_file = Path("proxies.json")
         self.manager = ProxyDataManager()
-        self.manager.add_proxy(IP(url="http://192.168.0.1:8080"))
+        self.manager.add_proxy(URL("http://192.168.0.1:8080"))
+
 
     def tearDown(self):
         if self.test_file.exists():
             self.test_file.unlink()
 
     def test_add_proxy(self):
-        self.manager.add_proxy(IP(url="http://192.168.0.4:8080"))
+        self.manager.add_proxy(URL("http://192.168.0.4:8080"))
         self.assertEqual(len(self.manager.proxies), 2)
         self.assertEqual(self.manager.proxies[-1]["ip"], "192.168.0.4")
 
@@ -30,7 +31,7 @@ class TestProxyDataManager(unittest.TestCase):
         self.assertEqual(len(self.manager.proxies), 0)
 
     def test_rm_proxy(self):
-        self.manager.add_proxy(IP(url="http://192.168.0.2:8080"))
+        self.manager.add_proxy(URL("http://192.168.0.2:8080"))
         self.manager.rm_proxy(1)
         self.assertEqual(len(self.manager.proxies), 1)
         self.assertEqual(self.manager.proxies[0]["ip"], "192.168.0.1")
@@ -40,7 +41,7 @@ class TestProxyDataManager(unittest.TestCase):
         self.assertIn(proxy, [p["url"] for p in self.manager.proxies])
 
     def test_rm_duplicate_proxies(self):
-        self.manager.add_proxy(IP(url="http://192.168.0.1:8080"))
+        self.manager.add_proxy(URL("http://192.168.0.1:8080"))
         self.manager.update_data(remove_duplicates=True)
         self.assertEqual(len(self.manager.proxies), 1)
 

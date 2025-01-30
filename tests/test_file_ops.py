@@ -6,7 +6,7 @@ import random
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'can_of_proxy'))
 
-from can_of_proxy.utils.file_ops import read_json, write_json
+from can_of_proxy.utils.file_ops import read_msgpack, write_msgpack
 
 
 def _get_proxy_data():
@@ -38,13 +38,21 @@ class TestProxyDataManager(unittest.TestCase):
     def setUp(self):
         self.test_file = Path("test.json")
         self.data = _get_test_file_data()
+        self.populate_test_file()
 
     def tearDown(self):
         if self.test_file.exists():
             self.test_file.unlink()
 
     def populate_test_file(self):
-        write_json(self.test_file, self.data)
+        write_msgpack(self.test_file, self.data)
+
+    def test_write_and_read_json(self):
+        write_msgpack(self.test_file, self.data)
+
+        read_data = read_msgpack(self.test_file)
+
+        self.assertEqual(self.data, read_data)
 
 
 if __name__ == '__main__':

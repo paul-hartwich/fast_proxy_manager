@@ -1,6 +1,7 @@
 from random import choice
 from pathlib import Path
-from utils import read_json, write_json, IP
+from utils import read_msgpack, write_msgpack
+from yarl import URL
 from json import JSONDecodeError
 from typing import Optional
 
@@ -17,14 +18,14 @@ def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
 
 
 class ProxyDataManager:
-    def __init__(self, json_file: Optional[Path] = Path("proxies.json"),
+    def __init__(self, msgpack: Optional[Path] = Path("proxies.json"),
                  allowed_fails_in_row: int = 3,
                  fails_without_check: int = 2,
                  percent_failed_to_remove: float = 0.5):
         """
         Get add and remove proxies from a list with some extra features.
 
-        :param json_file: Highly recommended to use it.
+        :param msgpack: Highly recommended to use it.
         Path to a store file with proxy data. If set to None, it will not store data in a file.
         :param allowed_fails_in_row: How many times a proxy can fail in a row before being removed.
         :param fails_without_check: How many times a proxy can fail before being checked for percentage of fails to remove.
@@ -36,23 +37,23 @@ class ProxyDataManager:
         self.fails_without_check = fails_without_check
         self.percent_failed_to_remove = percent_failed_to_remove
 
-        self.json_file = json_file if json_file else None
+        self.msgpack = msgpack if msgpack else None
         self.proxies = self._load_proxies()
         self.last_proxy_index = None
 
     def _load_proxies(self):
-        if self.json_file:
-            if self.json_file.exists() and self.json_file.stat().st_size > 0:
+        if self.msgpack:
+            if self.msgpack.exists() and self.msgpack.stat().st_size > 0:
                 try:
-                    return read_json(self.json_file)
+                    return read_msgpack(self.msgpack)
                 except JSONDecodeError:
                     return []
-            self.json_file.touch(exist_ok=True)
+            self.msgpack.touch(exist_ok=True)
         return []
 
     def _write_data(self):
-        if self.json_file:
-            write_json(self.json_file, self.proxies)
+        if self.msgpack:
+            write_msgpack(self.msgpack, self.proxies)
 
     def _rm_duplicate_proxies(self):
         """
@@ -105,12 +106,12 @@ class ProxyDataManager:
                 self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
-    def add_proxy(self, proxy: IP, country: str | None = None, anonymity: str | int | None = None):
+    def add_proxy(self, proxy: URL, country: str | None = None, anonymity: str | int | None = None):
         proxy_data = {
-            "protocol": proxy.protocol,
-            "ip": proxy.ip,
+            "protocol": proxy.scheme,
+            "ip": proxy.host,
             "port": proxy.port,
-            "url": proxy.url(),
+            "url": str(proxy),
             "country": country,
             "anonymity": anonymity,
             "times_failed": 0,
