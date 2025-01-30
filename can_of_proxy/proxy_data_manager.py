@@ -3,7 +3,7 @@ from pathlib import Path
 from utils import read_msgpack, write_msgpack
 from yarl import URL
 from json import JSONDecodeError
-from typing import Optional
+from typing import Optional, List
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
@@ -106,19 +106,39 @@ class ProxyDataManager:
                 self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
-    def add_proxy(self, proxy: URL, country: str | None = None, anonymity: str | int | None = None):
-        proxy_data = {
-            "protocol": proxy.scheme,
-            "ip": proxy.host,
-            "port": proxy.port,
-            "url": str(proxy),
-            "country": country,
-            "anonymity": anonymity,
-            "times_failed": 0,
-            "times_succeed": 0,
-            "times_failed_in_row": 0
-        }
-        self.proxies.append(proxy_data)
+    def add_proxy(self, proxies: URL | List[URL], country: str | None = None, anonymity: str | int | None = None):
+        """
+        Add a proxy to the list.
+        You can add a list of proxies at once, but all of them will have the same country and anonymity.
+        """
+        if isinstance(proxies, URL):
+            proxy_data = {
+                "protocol": proxies.scheme,
+                "ip": proxies.host,
+                "port": proxies.port,
+                "url": str(proxies),
+                "country": country,
+                "anonymity": anonymity,
+                "times_failed": 0,
+                "times_succeed": 0,
+                "times_failed_in_row": 0
+            }
+            self.proxies.append(proxy_data)
+
+        elif isinstance(proxies, list):
+            for proxy in proxies:
+                proxy_data = {
+                    "protocol": proxy.scheme,
+                    "ip": proxy.host,
+                    "port": proxy.port,
+                    "url": str(proxy),
+                    "country": country,
+                    "anonymity": anonymity,
+                    "times_failed": 0,
+                    "times_succeed": 0,
+                    "times_failed_in_row": 0
+                }
+                self.proxies.append(proxy_data)
 
     def rm_proxy(self, index: int):
         if 0 <= index < len(self.proxies):

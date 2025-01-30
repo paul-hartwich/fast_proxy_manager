@@ -4,6 +4,20 @@ from yarl import URL
 from typing import List
 
 
+async def test_internet_connection() -> bool:
+    """
+    Test if there is an internet connection.
+
+    :return: True if there is an internet connection, False otherwise
+    """
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://httpbin.org/ip") as response:
+                return response.status == 200
+    except aiohttp.ClientError:
+        return False
+
+
 async def get_request(url: str, proxy: URL, session: aiohttp.ClientSession = None) -> aiohttp.ClientResponse:
     """
     Does not require proxy or handle exceptions.
