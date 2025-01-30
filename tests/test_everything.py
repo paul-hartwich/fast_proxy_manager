@@ -20,18 +20,23 @@ def run_test(test_module, run_times: int):
         end_time = time.time()
         total_time += (end_time - start_time)
         if not result.wasSuccessful():
-            break
+            return test_module.__name__, None  # Return immediately if a test fails
     average_time = total_time / run_times
     return test_module.__name__, average_time
 
 
 if __name__ == "__main__":
     n = 25
-    results = [run_test(test_file_ops, n), run_test(proxy_data_manager_1, n), run_test(proxy_data_manager_2, n),
-               run_test(proxy_data_manager_3, n), run_test(proxy_data_manager_4, n), run_test(test_can, n),
-               run_test(test_auto_can, n)]
-    # checks all main modules and tests them n times
-    # Errors can still happen, but it's a good way to check if the code is stable
+    test_modules = [test_file_ops, proxy_data_manager_1, proxy_data_manager_2, proxy_data_manager_3,
+                    proxy_data_manager_4, test_can, test_auto_can]
+    results = []
+
+    for test_module in test_modules:
+        module_name, average_time = run_test(test_module, n)
+        if average_time is None:
+            print(f"Test failed in module: {module_name}")
+            break
+        results.append((module_name, average_time))
 
     for module_name, average_time in results:
         print(f"Average time per run for {module_name}: {average_time:.6f} seconds")

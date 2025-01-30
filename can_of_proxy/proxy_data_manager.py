@@ -3,7 +3,16 @@ from pathlib import Path
 from utils import read_msgpack, write_msgpack
 from yarl import URL
 from json import JSONDecodeError
-from typing import Optional, List
+from typing import Optional, List, Dict, TypedDict
+
+
+class ProxyDict(TypedDict):
+    """
+    {"url": URL, "country": str, "anonymity": str}
+    """
+    url: URL
+    country: str | None
+    anonymity: str | None
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
@@ -106,10 +115,12 @@ class ProxyDataManager:
                 self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
-    def add_proxy(self, proxies: URL | List[URL], country: str | None = None, anonymity: str | int | None = None):
+    def add_proxy(self, proxies: URL | List[URL] | List[ProxyDict],
+                  country: str | None = None, anonymity: str | None = None):
         """
         Add a proxy to the list.
         You can add a list of proxies at once, but all of them will have the same country and anonymity.
+        If a list of dictionaries is used, other params will be ignored and the data will be used from the dictionary.
         """
         if isinstance(proxies, URL):
             proxy_data = {
@@ -125,7 +136,7 @@ class ProxyDataManager:
             }
             self.proxies.append(proxy_data)
 
-        elif isinstance(proxies, list):
+        elif isinstance(proxies, list) and all(isinstance(proxy, URL) for proxy in proxies):
             for proxy in proxies:
                 proxy_data = {
                     "protocol": proxy.scheme,
@@ -139,6 +150,20 @@ class ProxyDataManager:
                     "times_failed_in_row": 0
                 }
                 self.proxies.append(proxy_data)
+
+        elif isinstance(proxies, list) and all(isinstance(proxy, dict) for proxy in proxies):
+            for proxy in proxies:
+                self.proxies.append({
+                    "protocol": proxy["url"].scheme,
+                    "ip": proxy["url"].host,
+                    "port": proxy["url"].port,
+                    "url": str(proxy["url"]),
+                    "country": proxy["country"],
+                    "anonymity": proxy["anonymity"],
+                    "times_failed": 0,
+                    "times_succeed": 0,
+                    "times_failed_in_row": 0
+                })
 
     def rm_proxy(self, index: int):
         if 0 <= index < len(self.proxies):

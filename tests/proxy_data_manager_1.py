@@ -87,6 +87,58 @@ class TestProxyDataManager(unittest.TestCase):
         self.assertEqual(self.manager.proxies[initial_index]["times_failed"], 1)
         self.assertEqual(self.manager.proxies[initial_index]["times_failed_in_row"], 1)
 
+    def test_add_proxy_list(self):
+        self.manager.rm_all_proxies()
+        self.assertEqual(len(self.manager.proxies), 0)
+
+        proxies = [
+            URL("http://192.168.0.1:8080"),
+            URL("http://192.168.0.2:8080"),
+            URL("http://192.168.0.3:8080")
+        ]
+
+        self.manager.add_proxy(proxies)
+
+        self.assertEqual(len(self.manager.proxies), 3)
+        self.assertEqual(self.manager.proxies[0]["country"], None)
+        self.assertEqual(self.manager.proxies[1]["country"], None)
+        self.assertEqual(self.manager.proxies[2]["country"], None)
+
+        self.assertEqual(self.manager.proxies[0]["anonymity"], None)
+        self.assertEqual(self.manager.proxies[1]["anonymity"], None)
+        self.assertEqual(self.manager.proxies[2]["anonymity"], None)
+
+    def test_add_proxy_dict(self):
+        self.manager.rm_all_proxies()
+        self.assertEqual(len(self.manager.proxies), 0)
+
+        proxies = [
+            {
+                "url": URL("http://192.168.0.1:8080"),
+                "country": "US",
+                "anonymity": "high"
+            },
+            {
+                "url": URL("http://192.168.0.2:8080"),
+                "country": "DE",
+                "anonymity": "medium"
+            },
+            {
+                "url": URL("http://192.168.0.3:8080"),
+                "country": "FR",
+                "anonymity": "low"
+            }
+        ]
+
+        self.manager.add_proxy(proxies)
+        self.assertEqual(len(self.manager.proxies), 3)
+        self.assertEqual(self.manager.proxies[0]["country"], "US")
+        self.assertEqual(self.manager.proxies[1]["country"], "DE")
+        self.assertEqual(self.manager.proxies[2]["country"], "FR")
+        self.assertEqual(self.manager.proxies[0]["anonymity"], "high")
+        self.assertEqual(self.manager.proxies[1]["anonymity"], "medium")
+        self.assertEqual(self.manager.proxies[2]["anonymity"], "low")
+
 
 if __name__ == "__main__":
     unittest.main()
