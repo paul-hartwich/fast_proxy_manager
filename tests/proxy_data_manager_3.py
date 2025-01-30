@@ -12,7 +12,7 @@ from yarl import URL
 
 class TestProxyDataManager(unittest.TestCase):
     def setUp(self):
-        self.manager = ProxyDataManager(json_file=None)
+        self.manager = ProxyDataManager(msgpack=None)
         self.manager.add_proxy(URL("http://192.168.0.1:8080"))
         self.manager.add_proxy(URL("http://192.168.0.2:8080"))
         self.manager.add_proxy(URL("http://192.168.0.3:8080"))

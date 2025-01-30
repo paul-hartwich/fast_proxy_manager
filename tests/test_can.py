@@ -1,10 +1,9 @@
 import unittest
 import sys, os
-
 import can_of_proxy as cop
 
 
-class MyTestCase(unittest.TestCase):
+class TestCan(unittest.TestCase):
     pass
 
 

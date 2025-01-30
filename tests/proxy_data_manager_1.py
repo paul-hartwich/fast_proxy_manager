@@ -12,8 +12,8 @@ from yarl import URL
 
 class TestProxyDataManager(unittest.TestCase):
     def setUp(self):
-        self.test_file = Path("proxies.json")
-        self.manager = ProxyDataManager()
+        self.test_file = Path("test.msgpack")
+        self.manager = ProxyDataManager(self.test_file)
         self.manager.add_proxy(URL("http://192.168.0.1:8080"))
 
     def tearDown(self):

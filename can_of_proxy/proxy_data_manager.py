@@ -136,7 +136,7 @@ class ProxyDataManager:
     def get_proxy(self, return_type: str = "url", preferred_protocol: list[str] | str | None = None,
                   preferred_country: list[str] | str | None = None,
                   preferred_anonymity: list[str] | str | None = None, ) -> str | None:
-        """Return a random proxy from the list. If no proxy is found, return None."""
+        """Return a random proxy from the list. If no proxy is found, return None. Never returns the same proxy twice."""
 
         preferred_protocol = _validate_protocol(preferred_protocol)
         preferred_country = preferred_country if isinstance(preferred_country, list) else [preferred_country]
