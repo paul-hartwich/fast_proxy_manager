@@ -16,7 +16,6 @@ class TestProxyDataManager(unittest.TestCase):
         self.manager = ProxyDataManager()
         self.manager.add_proxy(URL("http://192.168.0.1:8080"))
 
-
     def tearDown(self):
         if self.test_file.exists():
             self.test_file.unlink()

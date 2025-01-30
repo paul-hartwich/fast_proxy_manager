@@ -6,7 +6,8 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), 'can_of_proxy'))
 
 # Import the test module
-from tests import proxy_data_manager_1, proxy_data_manager_2, proxy_data_manager_3, test_file_ops, test_can
+from tests import proxy_data_manager_1, proxy_data_manager_2, proxy_data_manager_3, test_file_ops, test_can, \
+    test_auto_can
 
 
 def run_test(test_module, run_times: int):
@@ -27,3 +28,4 @@ if __name__ == "__main__":
     run_test(proxy_data_manager_2, n)
     run_test(proxy_data_manager_3, n)
     run_test(test_can, n)
+    run_test(test_auto_can, n)
