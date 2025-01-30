@@ -139,6 +139,32 @@ class TestProxyDataManager(unittest.TestCase):
         self.assertEqual(self.manager.proxies[1]["anonymity"], "medium")
         self.assertEqual(self.manager.proxies[2]["anonymity"], "low")
 
+    def test_merge_data(self):
+        self.manager.rm_all_proxies()
+        self.assertEqual(len(self.manager.proxies), 0)
+
+        proxies = [
+            {
+                "url": URL("http://192.168.0.3:8080"),
+                "country": None,
+                "anonymity": None
+            },
+            {
+                "url": URL("http://192.168.0.3:8080"),
+                "country": "FR",
+                "anonymity": "low"
+            }
+        ]
+        self.manager.add_proxy(proxies)
+        self.manager.proxies[0]["times_failed"] = 5
+        self.manager.proxies[0]["times_succeed"] = 3
+        self.manager.update_data(remove_duplicates=True)
+        self.assertEqual(len(self.manager.proxies), 1)
+        self.assertEqual(self.manager.proxies[0]["country"], "FR")
+        self.assertEqual(self.manager.proxies[0]["anonymity"], "low")
+        self.assertEqual(self.manager.proxies[0]["times_failed"], 5)
+        self.assertEqual(self.manager.proxies[0]["times_succeed"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

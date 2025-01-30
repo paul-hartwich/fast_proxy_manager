@@ -76,7 +76,18 @@ class ProxyDataManager:
                 existing_proxy = seen[url]
                 if (proxy['times_failed'] + proxy['times_succeed']) > (
                         existing_proxy['times_failed'] + existing_proxy['times_succeed']):
+                    # Merge country and anonymity data if they are None in the existing proxy
+                    if existing_proxy['country'] is None and proxy['country'] is not None:
+                        existing_proxy['country'] = proxy['country']
+                    if existing_proxy['anonymity'] is None and proxy['anonymity'] is not None:
+                        existing_proxy['anonymity'] = proxy['anonymity']
                     seen[url] = proxy
+                else:
+                    # Merge country and anonymity data if they are None in the existing proxy
+                    if existing_proxy['country'] is None and proxy['country'] is not None:
+                        existing_proxy['country'] = proxy['country']
+                    if existing_proxy['anonymity'] is None and proxy['anonymity'] is not None:
+                        existing_proxy['anonymity'] = proxy['anonymity']
             else:
                 seen[url] = proxy
         self.proxies = list(seen.values())
@@ -180,7 +191,7 @@ class ProxyDataManager:
 
     def get_proxy(self, return_type: str = "url", preferred_protocol: list[str] | str | None = None,
                   preferred_country: list[str] | str | None = None,
-                  preferred_anonymity: list[str] | str | None = None, ) -> str | None:
+                  preferred_anonymity: list[str] | str | None = None) -> str | None:
         """Return a random proxy from the list. If no proxy is found, return None. Never returns the same proxy twice."""
 
         preferred_protocol = _validate_protocol(preferred_protocol)
