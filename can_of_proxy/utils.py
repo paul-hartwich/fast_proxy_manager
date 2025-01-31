@@ -87,8 +87,24 @@ class ProxiflyDict(TypedDict):
     geolocation: GeolocationDict
 
 
-if __name__ == '__main__':
-    url = URL("https://123.123.123.123:8080")
-    print(url)
-    print(url.is_absolute())
-    print("Protocol:", url.protocol, "IP:", url.ip, "Port:", url.port)
+def proxifly_to_proxy_dict(proxifly_dict: ProxiflyDict) -> ProxyDict:
+    url = URL(proxifly_dict["proxy"])
+    return {"url": url, "country": proxifly_dict["geolocation"]["country"], "anonymity": proxifly_dict["anonymity"]}
+
+
+class NoProxyAvailable(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        return f"NoProxyAvailable: {self.message}"
+
+
+class NoValidProxyAvailable(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+    def __str__(self):
+        return f"NoValidProxyAvailable: {self.message}"

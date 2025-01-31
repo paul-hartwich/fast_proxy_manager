@@ -1,6 +1,6 @@
 import orjson
-from yarl import URL
 import asyncio
+from utils import URL
 import aiohttp
 from icecream import ic
 

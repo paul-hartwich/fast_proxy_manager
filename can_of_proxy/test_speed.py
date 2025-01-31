@@ -1,4 +1,3 @@
-import asyncio
 import timeit
 from icecream import ic
 from functools import wraps

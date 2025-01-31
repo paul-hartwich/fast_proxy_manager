@@ -1,7 +1,6 @@
 from typing import Optional, List, Union
 from can_of_proxy.proxy_data_manager import ProxyDataManager
-from can_of_proxy.types_and_exceptions import NoProxyAvailable, ProxyDict, ProxiflyDict
-from yarl import URL
+from utils import NoProxyAvailable, ProxyDict, ProxiflyDict, URL
 from pathlib import Path
 import get
 from test_proxies import test_proxies

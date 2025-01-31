@@ -1,11 +1,9 @@
 from random import choice
 from pathlib import Path
 from file_ops import read_msgpack, write_msgpack
-from yarl import URL
 from json import JSONDecodeError
 from typing import Optional, List
-from types import ProxyDict
-from exceptions import NoProxyAvailable
+from utils import ProxyDict, NoProxyAvailable, URL
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:

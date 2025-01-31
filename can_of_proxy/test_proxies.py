@@ -1,23 +1,21 @@
 import asyncio
-from typing import List, Tuple, Dict, Any
-
+from typing import Tuple, Any
+from utils import URL
 import aiohttp
 from icecream import ic
 
 
-async def is_proxy_valid(proxy_complete_url: str) -> Tuple[bool, Any]:
-    if ':' not in proxy_complete_url.split('//')[-1]:
-        return False, None
-
-    proxy_formatted = {"http": proxy_complete_url, "https": proxy_complete_url}
-    url = 'https://httpbin.org/ip'
+async def is_proxy_valid(proxy: URL) -> Tuple[bool, Any]:
+    url = f"{proxy.ip}:{proxy.port}"
+    proxy_formatted = {"http": url, "https": url}
+    dest_url = 'https://httpbin.org/ip'
 
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, proxy=proxy_complete_url, timeout=15) as response:
+            async with session.get(dest_url, proxy=proxy_formatted, timeout=15) as response:
                 if response.status != 200:
                     return False, None
-                ic(f'Proxy {proxy_complete_url} is working.')
+                ic(f'Proxy {url} is working.')
                 return True, proxy_formatted
         except (
                 asyncio.TimeoutError, aiohttp.ClientError, AssertionError, OSError, RuntimeError,
@@ -38,3 +36,6 @@ if __name__ == '__main__':
             if valid:
                 valid_proxies.append(formatted_proxy)
         ic(valid_proxies)
+
+
+    asyncio.run(main())
