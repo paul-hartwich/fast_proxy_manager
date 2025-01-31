@@ -3,7 +3,8 @@ from can_of_proxy.proxy_data_manager import ProxyDataManager
 from can_of_proxy.types_and_exceptions import NoProxyAvailable, ProxyDict, ProxiflyDict
 from yarl import URL
 from pathlib import Path
-from can_of_proxy.utils import get
+import get
+from test_proxies import test_proxies
 import aiohttp
 
 

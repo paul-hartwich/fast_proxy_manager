@@ -1,10 +1,9 @@
 import unittest
-import sys, os
-import can_of_proxy as cop
 
 
-class TestCan(unittest.TestCase):
-    pass
+class MyTestCase(unittest.TestCase):
+    def test_something(self):
+        self.assertEqual(True, False)  # add assertion here
 
 
 if __name__ == '__main__':

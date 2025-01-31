@@ -1,26 +1,32 @@
-import orjson
-from yarl import URL
 import asyncio
-from typing import List, Union
+from typing import List, Tuple, Any
 import aiohttp
-from can_of_proxy.types_and_exceptions import ProxyDict
-from colorama import Fore, Style
+from icecream import ic
 
 
-async def get_request(url: str, retries=3):
-    headers = {"User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"}
+async def is_proxy_valid(proxy_complete_url: str) -> Tuple[bool, Any]:
+    """
+    Check if a proxy is valid by checking if the IP is reachable through the proxy.
+    :param proxy_complete_url: example: http://ip:port
+    """
+    if ':' not in proxy_complete_url.split('//')[-1]:
+        return False, None
 
-    for attempt in range(retries):
+    proxy_formatted = {"http": proxy_complete_url, "https": proxy_complete_url}
+    url = 'https://httpbin.org/ip'
+
+    async with aiohttp.ClientSession() as session:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers) as response:
-                    response.raise_for_status()
-                    return await response.read()
-        except aiohttp.ClientConnectionError as e:
-            print(f"Connection closed (Attempt {attempt + 1}/{retries}): {e}")
-            if attempt == retries - 1:
-                raise  # Give up after max retries
-            await asyncio.sleep(1)  # Wait before retrying
+            async with session.get(url, proxy=proxy_complete_url, timeout=15) as response:
+                if response.status != 200:
+                    return False, None
+                ic(f'Proxy {proxy_complete_url} is working.')
+                return True, proxy_formatted
+        except (
+                asyncio.TimeoutError, aiohttp.ClientError, AssertionError, OSError, RuntimeError,
+                ConnectionResetError) as e:
+            ic(f'Error in is_proxy_valid: {e}')
+            return False, None
 
 
 async def _test_proxy(session: aiohttp.ClientSession, proxy: URL, timeout: int, retries: int) -> bool:
@@ -40,7 +46,7 @@ async def _test_proxy(session: aiohttp.ClientSession, proxy: URL, timeout: int, 
                 if response.status == 200:
                     json_response = await response.json()
                     if json_response["origin"] == proxy.host:
-                        print(Fore.GREEN + f"Valid proxy: {str(proxy)}" + Style.RESET_ALL)
+                        ic(f"Valid proxy: {str(proxy)}")
                         return True
         except (aiohttp.ClientError, asyncio.TimeoutError):
             if attempt == retries:
@@ -90,61 +96,3 @@ async def __test_proxy_with_semaphore(session: aiohttp.ClientSession, proxy: URL
     """
     async with semaphore:
         return await _test_proxy(session, proxy, timeout, retries)
-
-
-async def test_internet_connection() -> bool:
-    """
-    Test if there is an internet connection.
-
-    :return: True if there is an internet connection, False otherwise
-    """
-    try:
-        response = await get_request("https://httpbin.org/ip")
-        if response.status == 200:
-            return True
-    except aiohttp.ClientError:
-        return False
-
-
-async def github_proxifly():
-    url = URL("https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.json")
-    response_text = await get_request(url)
-
-    try:
-        response_text = response_text.decode("utf-8")
-        proxies = orjson.loads(response_text)
-        return proxies
-    except orjson.JSONDecodeError:
-        print("Failed to parse JSON")
-        return []
-
-
-if __name__ == '__main__':
-    from pprint import pprint
-    import time
-
-
-    class Timer:
-        def __init__(self):
-            self.start = 0
-            self.end = 0
-
-        def __enter__(self):
-            self.start = time.time()
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            self.end = time.time()
-            print(f"Time: {self.end - self.start}")
-
-
-    timer = Timer()
-
-
-    async def main():
-        with timer:
-            proxies = await github_proxifly()
-        pprint(len(proxies))
-
-
-    asyncio.run(main())

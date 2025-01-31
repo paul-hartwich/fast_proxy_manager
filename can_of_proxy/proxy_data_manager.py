@@ -1,6 +1,6 @@
 from random import choice
 from pathlib import Path
-from can_of_proxy.utils import read_msgpack, write_msgpack
+from file_ops import read_msgpack, write_msgpack
 from yarl import URL
 from json import JSONDecodeError
 from typing import Optional, List

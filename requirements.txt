@@ -3,3 +3,4 @@ yarl~=1.18.3
 msgpack~=1.1.0
 requests~=2.32.3
 orjson~=3.10.15
+icecream~=2.1.4
