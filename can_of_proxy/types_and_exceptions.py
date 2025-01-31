@@ -11,6 +11,23 @@ class ProxyDict(TypedDict):
     anonymity: str | None
 
 
+class GeolocationDict(TypedDict):
+    """
+    {"country": str, "city": str}
+    """
+    country: str
+    city: str
+
+
+class ProxiflyDict(TypedDict):
+    """
+    {"proxy": str, "anonymity": str, "geolocation": dict}
+    """
+    proxy: str
+    anonymity: str
+    geolocation: GeolocationDict
+
+
 class NoProxyAvailable(Exception):
     def __init__(self, message):
         super().__init__(message)

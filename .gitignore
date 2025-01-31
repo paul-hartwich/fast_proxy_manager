@@ -5,6 +5,7 @@
 */test.json
 */proxies.msgpack
 */test.msgpack
+*/proxy_data.msgpack
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

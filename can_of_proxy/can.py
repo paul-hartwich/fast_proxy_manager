@@ -1,10 +1,35 @@
-from typing import Optional, List
-
-from can_of_proxy.proxy_data_manager import ProxyDataManager, NoProxyAvailable, ProxyDict
+from typing import Optional, List, Union
+from can_of_proxy.proxy_data_manager import ProxyDataManager
+from can_of_proxy.types_and_exceptions import NoProxyAvailable, ProxyDict, ProxiflyDict
 from yarl import URL
 from pathlib import Path
 from can_of_proxy.utils import get
 import aiohttp
+
+
+def _extract_from_url(url: URL) -> [URL.scheme, URL.host, URL.port]:
+    return url.scheme, url.host, url.port
+
+
+def _convert_data_from_proxifly(data: ProxiflyDict) -> ProxyDict:
+    return ProxyDict(
+        url=URL(data["proxy"]),
+        country=data["geolocation"]["country"],
+        anonymity=data["anonymity"]
+    )
+
+
+def _convert_list_to_dicts(proxies: List[URL]) -> List[ProxyDict]:
+    return [ProxyDict(url=proxy, anonymity=None, country=None) for proxy in proxies]
+
+
+def _check_case(proxies: Union[List[URL], List[ProxyDict]]) -> str:
+    if proxies and isinstance(proxies[0], URL):
+        return "List[URL]"
+    elif proxies and isinstance(proxies[0], dict) and "url" in proxies[0]:
+        return "List[ProxyDict]"
+    else:
+        return "Unknown"
 
 
 class Can:
@@ -27,6 +52,9 @@ class Can:
         :param percent_failed_to_remove: Percentage of fails to remove a proxy.
         Example: 0.5 means 50% of tries are fails, if higher than that it gets removed.
         """
+
+        if data_file is not None:
+            data_file = Path(data_file)
 
         self.preferred_protocol = preferred_protocol
         self.preferred_country = preferred_country
@@ -65,7 +93,7 @@ class Can:
         self.manager.feedback_proxy(success)
 
     def add_proxy(self,
-                  proxies: URL | list[URL] | list[ProxyDict],
+                  proxies: Union[List[URL], List[ProxyDict], None],
                   country: str | None = None,
                   anonymity: str | None = None) -> None:
         """
@@ -75,16 +103,51 @@ class Can:
         """
         self.manager.add_proxy(proxies, country, anonymity)
 
-    def fetch_proxies(self, max_proxies: int | None = None) -> List[URL] | List[ProxyDict]:
+    async def fetch_proxies(self, test_proxies: bool = True, fetch_from_proxifly: bool = True,
+                            proxies: Union[List[URL], List[ProxyDict]] = None) -> Union[List[URL], List[ProxyDict]]:
         """
-        Fetch proxies from the sources.
+        Fetch proxies from the sources and add them to the proxy manager.
         """
+        formated_proxifly_dicts = []
+        custom_proxy_dicts = []
 
-        return
+        if proxies is None and not fetch_from_proxifly:
+            raise ValueError("You need to provide proxies or set fetch_from_proxifly to True.")
 
-    def __enter__(self):
-        return self
+        if fetch_from_proxifly:
+            proxifly_dicts = await get.github_proxifly()
+            formated_proxifly_dicts = [_convert_data_from_proxifly(proxy) for proxy in proxifly_dicts]
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Handle any cleanup if necessary
-        pass
+        if proxies is not None:
+            case = _check_case(proxies)
+            if case == "List[URL]":
+                custom_proxy_dicts = _convert_list_to_dicts(proxies)
+            elif case == "List[ProxyDict]":
+                custom_proxy_dicts = proxies
+            else:
+                raise ValueError(f"Unknown case: {case}")
+
+        if fetch_from_proxifly:
+            proxies = formated_proxifly_dicts + custom_proxy_dicts
+        else:
+            proxies = custom_proxy_dicts
+
+        if test_proxies:
+            proxies = await get.test_proxies(proxies)
+
+        self.manager.add_proxy(proxies)
+        self.manager.update_data(remove_duplicates=True)
+
+
+if __name__ == '__main__':
+    import asyncio
+
+
+    async def main():
+        mgr = Can(data_file="proxies.msgpack")
+        mgr.manager.rm_all_proxies()
+        await mgr.fetch_proxies(test_proxies=True)
+        print(len(mgr.manager))
+
+
+    asyncio.run(main())
