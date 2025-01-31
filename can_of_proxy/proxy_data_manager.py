@@ -4,7 +4,8 @@ from file_ops import read_msgpack, write_msgpack
 from yarl import URL
 from json import JSONDecodeError
 from typing import Optional, List
-from can_of_proxy.types_and_exceptions import ProxyDict, NoProxyAvailable
+from types import ProxyDict
+from exceptions import NoProxyAvailable
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:

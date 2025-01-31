@@ -35,29 +35,12 @@ async def github_proxifly():
 
 
 if __name__ == '__main__':
-    import time
+    from test_speed import timer
 
 
-    class Timer:
-        def __init__(self):
-            self.start = 0
-            self.end = 0
-
-        def __enter__(self):
-            self.start = time.time()
-            return self
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            self.end = time.time()
-            ic(f"Time: {self.end - self.start}")
-
-
-    timer = Timer()
-
-
+    @timer
     async def main():
-        with timer:
-            proxies = await github_proxifly()
+        proxies = await github_proxifly()
         ic(len(proxies))
 
 
