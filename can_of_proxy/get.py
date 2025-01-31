@@ -2,7 +2,6 @@ import orjson
 import asyncio
 from utils import URL
 import aiohttp
-from icecream import ic
 
 
 async def get_request(url: str, retries: int = 1, timeout: int = 10,
@@ -30,7 +29,7 @@ async def get_request(url: str, retries: int = 1, timeout: int = 10,
 
 
 async def github_proxifly():
-    url = URL("https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.json")
+    url = "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.json"
     response = await get_request(url, retries=3, timeout=15)
 
     try:
@@ -42,14 +41,15 @@ async def github_proxifly():
 
 
 if __name__ == '__main__':
-    from test_speed import timer
+    from icecream import ic
+    from test_speed import Timer
 
 
-    @timer
     async def main():
-        proxies = await github_proxifly()
-        ic(len(proxies))
-        ic(proxies[:2])
+        with Timer():
+            proxies = await github_proxifly()
+            ic(len(proxies))
+            ic(proxies[:2])
 
 
     asyncio.run(main())

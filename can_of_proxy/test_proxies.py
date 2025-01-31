@@ -1,27 +1,39 @@
+from typing import Tuple, List, Union, Dict
 import asyncio
-from typing import Tuple, Any
-from utils import URL
 import aiohttp
 from icecream import ic
+from utils import URL
 
 
-async def is_proxy_valid(proxy: URL) -> Tuple[bool, Any]:
-    url = f"{proxy.ip}:{proxy.port}"
-    proxy_formatted = {"http": url, "https": url}
-    dest_url = 'https://httpbin.org/ip'
+async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession) -> Tuple[bool, Union[str, None]]:
+    """Dict must contain 'url' key or preferably 'ip' and 'port' keys."""
+    try:
+        url = proxy['ip'] + ':' + str(proxy['port'])
+    except KeyError:
+        url = URL(proxy['url'])
+        url = url.ip + ':' + url.port
 
+    try:
+        async with session.get("https://httpbin.org/ip", proxy=url) as response:
+            if response.status == 200:
+                return True, url
+            else:
+                return False, None
+    except aiohttp.ClientConnectionError as e:
+        ic(f"Connection closed: {e}")
+        return False, None
+
+
+async def get_valid_proxies(proxies: List[Dict]) -> Tuple[bool, Union[List[Dict], None]]:
+    """Dict must contain 'url' key or preferably 'ip' and 'port' keys."""
+    valid_proxies = []
     async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(dest_url, proxy=proxy_formatted, timeout=15) as response:
-                if response.status != 200:
-                    return False, None
-                ic(f'Proxy {url} is working.')
-                return True, proxy_formatted
-        except (
-                asyncio.TimeoutError, aiohttp.ClientError, AssertionError, OSError, RuntimeError,
-                ConnectionResetError) as e:
-            ic(f'Error in is_proxy_valid: {e}')
-            return False, None
+        for proxy in proxies:
+            valid, formatted_proxy = await _is_proxy_valid(proxy, session)
+            if valid:
+                valid_proxies.append(formatted_proxy)
+                ic(f"Valid: {formatted_proxy}")
+        return True, valid_proxies
 
 
 if __name__ == '__main__':
@@ -30,12 +42,8 @@ if __name__ == '__main__':
 
     async def main():
         proxies = await github_proxifly()
-        valid_proxies = []
-        for proxy in proxies:
-            valid, formatted_proxy = await is_proxy_valid(proxy)
-            if valid:
-                valid_proxies.append(formatted_proxy)
-        ic(valid_proxies)
+        ic(len(proxies))
+        proxies = await get_valid_proxies(proxies)
 
 
     asyncio.run(main())
