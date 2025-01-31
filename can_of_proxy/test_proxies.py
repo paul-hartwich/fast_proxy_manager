@@ -1,24 +1,37 @@
-from typing import Tuple, List, Union, Dict
 import asyncio
+from typing import Tuple, List, Union, Dict
 import aiohttp
 from icecream import ic
 from utils import URL
 
 
+class ProxyConfig:
+    timeout = 15
+    retries = 3
+
+
 async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession) -> Tuple[bool, Union[str, None]]:
-    """Dict must contain 'url' key or preferably 'ip' and 'port' keys."""
+    """Proxy dictionary must contain 'url' or 'proxy' key or 'ip', 'port', 'protocol' keys"""
     try:
-        url = proxy['ip'] + ':' + str(proxy['port'])
+        url = f"{proxy['protocol']}://{proxy['ip']}:{str(proxy['port'])}"
     except KeyError:
-        url = URL(proxy['url'])
-        url = url.ip + ':' + url.port
+        url = proxy.get('url') or proxy.get('proxy')
+        if not url:
+            raise ValueError("Proxy dictionary must contain 'url' or 'proxy' key or 'ip', 'port', 'protocol' keys")
+        url = URL(url)
 
     try:
-        async with session.get("https://httpbin.org/ip", proxy=url) as response:
+        async with session.get("https://httpbin.org/ip", proxy=str(url), allow_redirects=True,
+                               timeout=ProxyConfig.timeout) as response:
             if response.status == 200:
-                return True, url
+                ic(f"Valid: {url}")
+                return True, str(url)
             else:
+                ic(f"Invalid: {url}")
                 return False, None
+    except aiohttp.ClientHttpProxyError as e:
+        ic(f"Proxy error: {e}")
+        return False, None
     except aiohttp.ClientConnectionError as e:
         ic(f"Connection closed: {e}")
         return False, None
@@ -44,6 +57,7 @@ if __name__ == '__main__':
         proxies = await github_proxifly()
         ic(len(proxies))
         proxies = await get_valid_proxies(proxies)
+        ic(proxies[:2])
 
 
     asyncio.run(main())

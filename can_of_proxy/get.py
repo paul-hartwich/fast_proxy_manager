@@ -16,7 +16,7 @@ async def get_request(url: str, retries: int = 1, timeout: int = 10,
                 session = aiohttp.ClientSession()
                 created_session = True
 
-            async with session.get(url, headers=headers, proxy=proxy, timeout=timeout) as response:
+            async with session.get(url, headers=headers, proxy=proxy, timeout=timeout, proxy_auth=None) as response:
                 return await response.text()
         except aiohttp.ClientConnectionError as e:
             ic(f"Connection closed (Attempt {attempt + 1}/{retries}): {e}")
