@@ -10,3 +10,6 @@ def read_msgpack(file: Path) -> list[dict]:
 def write_msgpack(file: Path, data: list[dict]):
     with open(file, "wb") as f:
         f.write(msgpack.packb(data, use_bin_type=True))  # use_bin_type=True for compatibility
+
+
+from yarl import URL

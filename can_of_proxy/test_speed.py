@@ -11,7 +11,7 @@ def timer(func):
         result = func(*args, **kwargs)
         end = timeit.default_timer()
         interval = end - start
-        ic(f"Elapsed time: {interval:.2f} seconds")
+        ic(f"Elapsed time: {interval:.3f} seconds")
         return result
 
     return wrapper
@@ -24,7 +24,7 @@ def async_timer(func):
         result = await func(*args, **kwargs)
         end = timeit.default_timer()
         interval = end - start
-        ic(f"Elapsed time: {interval:.2f} seconds")
+        ic(f"Elapsed time: {interval:.3f} seconds")
         return result
 
     return wrapper
@@ -38,7 +38,7 @@ class Timer:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end = timeit.default_timer()
         self.interval = self.end - self.start
-        ic(f"Elapsed time: {self.interval:.2f} seconds")
+        ic(f"Elapsed time: {self.interval:.3f} seconds")
 
 
 class AsyncTimer:
@@ -49,4 +49,4 @@ class AsyncTimer:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self.end = timeit.default_timer()
         self.interval = self.end - self.start
-        ic(f"Elapsed time: {self.interval:.2f} seconds")
+        ic(f"Elapsed time: {self.interval:.3f} seconds")
