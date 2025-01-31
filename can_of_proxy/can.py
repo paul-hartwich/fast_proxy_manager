@@ -1,9 +1,9 @@
 from typing import Optional, List
 
-from proxy_data_manager import ProxyDataManager, NoProxyAvailable, ProxyDict
+from can_of_proxy.proxy_data_manager import ProxyDataManager, NoProxyAvailable, ProxyDict
 from yarl import URL
 from pathlib import Path
-from utils import get
+from can_of_proxy.utils import get
 import aiohttp
 
 
@@ -36,13 +36,18 @@ class Can:
                                         fails_without_check=fails_without_check,
                                         percent_failed_to_remove=percent_failed_to_remove)
 
-    async def get_request(self, session: Optional[aiohttp.ClientSession]) -> aiohttp.ClientResponse:
-        """New session if Session not provided."""
+    async def get_request(self, url: URL, session: Optional[aiohttp.ClientSession]) -> aiohttp.ClientResponse:
+        """
+        New session if Session not provided.
+        Gives automatic feedback to the proxy manager.
+        :param url: Url to send request to
+        :param session: aiohttp.ClientSession
+        """
         proxy = self.manager.get_proxy()
         if proxy is None:
             raise NoProxyAvailable("Request stopped because no proxy was available.")
 
-        response = await get.get_request(proxy, session)
+        response = await get.get_request(url, proxy, session)
         if response.status == 200:
             self.manager.feedback_proxy(True)
         else:
@@ -70,11 +75,12 @@ class Can:
         """
         self.manager.add_proxy(proxies, country, anonymity)
 
-    def fetch_proxies(self) -> List[URL] | List[ProxyDict]:
+    def fetch_proxies(self, max_proxies: int | None = None) -> List[URL] | List[ProxyDict]:
         """
         Fetch proxies from the sources.
         """
-        return self.manager.fetch_proxies()
+
+        return
 
     def __enter__(self):
         return self

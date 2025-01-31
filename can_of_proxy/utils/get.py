@@ -1,7 +1,29 @@
-import aiohttp
-import asyncio
+from typing import Optional
+import json
 from yarl import URL
+import asyncio
 from typing import List
+from can_of_proxy.utils.types_and_exceptions import ProxyDict
+import aiohttp
+
+
+async def get_request(url: str, proxy: Optional[URL] = None,
+                      session: Optional[aiohttp.ClientSession] = None) -> aiohttp.ClientResponse:
+    """
+    Basic GET request with aiohttp and async/await.
+    """
+    close_session = False  # Track if we created the session
+    if session is None:
+        session = aiohttp.ClientSession()
+        close_session = True
+
+    try:
+        async with session.get(url, proxy=proxy, allow_redirects=True) as response:
+            response.raise_for_status()
+            return response
+    finally:
+        if close_session:
+            await session.close()  # Close session if we created it
 
 
 async def test_internet_connection() -> bool:
@@ -11,38 +33,11 @@ async def test_internet_connection() -> bool:
     :return: True if there is an internet connection, False otherwise
     """
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://httpbin.org/ip") as response:
-                return response.status == 200
+        response = await get_request("https://httpbin.org/ip")
+        if response.status == 200:
+            return True
     except aiohttp.ClientError:
         return False
-
-
-async def get_request(url: str, proxy: URL, session: aiohttp.ClientSession = None) -> aiohttp.ClientResponse:
-    """
-    Does not require proxy or handle exceptions.
-    Basic GET request with aiohttp and async/await.
-
-    :param session: An aiohttp ClientSession, not required but useful for performance
-    :param url: URL to get
-    :param proxy: Proxy to use in the format: protocol://ip:port
-    :return: aiohttp ClientResponse
-    """
-    if session is None:
-        async with aiohttp.ClientSession() as session:
-            if proxy is None:
-                async with session.get(url) as response:
-                    return response
-            else:
-                async with session.get(url, proxy=proxy) as response:
-                    return response
-    else:
-        if proxy is None:
-            async with session.get(url) as response:
-                return response
-        else:
-            async with session.get(url, proxy=proxy) as response:
-                return response
 
 
 async def test_proxy(session: aiohttp.ClientSession, proxy: URL, timeout: int, retries: int) -> bool:
@@ -109,7 +104,51 @@ async def _test_proxy_with_semaphore(session: aiohttp.ClientSession, proxy: URL,
         return await test_proxy(session, proxy, timeout, retries)
 
 
+async def github_proxifly(country: None | str = None, anonymity: None | str = None, https_over_http: bool = True) -> \
+        List[URL] | List[ProxyDict]:
+    """
+    When just all proxies are fetched, they can still be filtered by country and anonymity.
+    :return: List of http proxies from proxifly GitHub repository.
+
+    For more:
+    https://github.com/proxifly/free-proxy-list/tree/main
+    """
+    url = URL("https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.json")
+    response = await get_request(url)
+    try:
+        response_text = await response.text()
+        proxies = json.loads(response_text)
+        return proxies
+    except json.JSONDecodeError:
+        return []
+
+
 if __name__ == '__main__':
-    all_proxies = ["http://proxy1:port", "http://proxy2:port", ...]
-    working_proxies = asyncio.run(mass_testing(all_proxies, timeout=10, retries=2, simultaneous_requests=5))
-    print(working_proxies)
+    from pprint import pprint
+    import time
+
+
+    class Timer:
+        def __init__(self):
+            self.start = 0
+            self.end = 0
+
+        def __enter__(self):
+            self.start = time.time()
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.end = time.time()
+            print(f"Time: {self.end - self.start}")
+
+
+    timer = Timer()
+
+
+    async def main():
+        with timer:
+            proxies = await github_proxifly()
+            pprint(proxies)
+
+
+    asyncio.run(main())

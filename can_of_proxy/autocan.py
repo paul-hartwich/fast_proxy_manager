@@ -1,6 +1,6 @@
-from can import Can
+from can_of_proxy.can import Can
 import aiohttp
-from utils import get
+from can_of_proxy.utils import get
 from typing import Optional
 
 

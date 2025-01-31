@@ -3,7 +3,9 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/paul-hartwich/can_of_proxy/badge)](https://www.codefactor.io/repository/github/paul-hartwich/can_of_proxy)
 
 *Note: Please use this library with caution.
-Don't use this library for illegal activities, we
+It is Only For Educational Purposes.
+Neither I Say Nor I Promote To Do Anything Illegal.
+Don't use this library for illegal activities, I
 will not take responsibility for any misuse of this library.*
 
 ## Installation
@@ -24,6 +26,7 @@ anymore.
 And remove proxies from the list if they are not working.
 This script does maintain the can proxies for you entirely.
 Best use for looping scraping scripts (legal) or for easy/fast use of proxy.
+It can also be seen as a pre-configured Can.
 
 **Example:**
 
@@ -47,3 +50,7 @@ import can_of_proxy as cop
 
 can = cop.Can()
 ```
+
+# NOTES
+
+It is Only For Educational Purposes. Neither I Say Nor I Promote To Do Anything Illegal.

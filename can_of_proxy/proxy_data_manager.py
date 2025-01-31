@@ -1,27 +1,10 @@
 from random import choice
 from pathlib import Path
-from utils import read_msgpack, write_msgpack
+from can_of_proxy.utils import read_msgpack, write_msgpack
 from yarl import URL
 from json import JSONDecodeError
-from typing import Optional, List, Dict, TypedDict
-
-
-class ProxyDict(TypedDict):
-    """
-    {"url": URL, "country": str, "anonymity": str}
-    """
-    url: URL
-    country: str | None
-    anonymity: str | None
-
-
-class NoProxyAvailable(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-        self.message = message
-
-    def __str__(self):
-        return f"NoProxyAvailable: {self.message}"
+from typing import Optional, List
+from can_of_proxy.utils.types_and_exceptions import ProxyDict, NoProxyAvailable
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
@@ -194,7 +177,7 @@ class ProxyDataManager:
 
     def get_proxy(self, return_type: str = "url", preferred_protocol: list[str] | str | None = None,
                   preferred_country: list[str] | str | None = None,
-                  preferred_anonymity: list[str] | str | None = None) -> str | None:
+                  preferred_anonymity: list[str] | str | None = None) -> URL | None:
         """Return a random proxy from the list. If no proxy is found, return None. Never returns the same proxy twice."""
 
         preferred_protocol = _validate_protocol(preferred_protocol)
