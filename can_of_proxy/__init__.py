@@ -1,4 +1,4 @@
 from can_of_proxy.can import Can
-from can_of_proxy.types_and_exceptions import NoProxyAvailable
+from can_of_proxy.utils import NoProxyAvailable, ProxyDict, URL
 
-__all__ = ['Can', 'NoProxyAvailable']
+__all__ = ['Can', 'NoProxyAvailable', 'ProxyDict', 'URL']

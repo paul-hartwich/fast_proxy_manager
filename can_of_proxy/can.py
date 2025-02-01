@@ -3,12 +3,8 @@ from can_of_proxy.proxy_data_manager import ProxyDataManager
 from utils import NoProxyAvailable, ProxyDict, ProxiflyDict, URL
 from pathlib import Path
 import get
-from test_proxies import test_proxies
+from test_proxies import get_valid_proxies
 import aiohttp
-
-
-def _extract_from_url(url: URL) -> [URL.scheme, URL.host, URL.port]:
-    return url.scheme, url.host, url.port
 
 
 def _convert_data_from_proxifly(data: ProxiflyDict) -> ProxyDict:
@@ -52,6 +48,10 @@ class Can:
         :param percent_failed_to_remove: Percentage of fails to remove a proxy.
         Example: 0.5 means 50% of tries are fails, if higher than that it gets removed.
         """
+
+        def set_fetch_proxies_method(self, method):
+            """Set the user's custom method for fetching proxies."""
+            self.fetch_proxies_method = method
 
         if data_file is not None:
             data_file = Path(data_file)

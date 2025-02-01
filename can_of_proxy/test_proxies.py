@@ -2,21 +2,20 @@ import asyncio
 from typing import Tuple, List, Union, Dict
 import aiohttp
 from icecream import ic
-from utils import URL
+
+from can_of_proxy.utils import ProxyDict
+import utils
+from random import shuffle
+import logging
+
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)  # disables awful debug messages
 
 
-async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
+async def _is_proxy_valid(proxy: ProxyDict, session: aiohttp.ClientSession,
                           supported_protocols: Tuple[str] = ('http', 'https')) -> Union[str, None]:
     """Proxy dictionary must contain 'url' or 'proxy' key or 'ip', 'port', 'protocol' keys"""
-    try:
-        protocol = proxy['protocol']
-        url = URL(f"{protocol}://{proxy['ip']}:{str(proxy['port'])}")
-    except KeyError:
-        url = proxy.get('url') or proxy.get('proxy')
-        if not url:
-            raise ValueError("Proxy dictionary must contain 'url' or 'proxy' key or 'ip', 'port', 'protocol' keys")
-        url = URL(url)
-        protocol = url.protocol
+    url = proxy["url"]
+    protocol = url.protocol
 
     if protocol not in supported_protocols:
         return None
@@ -31,10 +30,11 @@ async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
         return None
 
 
-async def get_valid_proxies(proxies: List[Dict], min_working_proxies: int, max_working_proxies: int,
+async def get_valid_proxies(proxies: List[Dict], max_working_proxies: int,
                             simultaneous_proxy_requests: int = 200) -> List[str]:
     """Dict must contain 'url' key or preferably 'ip' and 'port' keys."""
     valid_proxies = []
+    shuffle(proxies)
     semaphore = asyncio.Semaphore(simultaneous_proxy_requests)
 
     async with aiohttp.ClientSession() as session:
@@ -60,9 +60,9 @@ if __name__ == '__main__':
     async def main():
         proxies = await custom_json_proxy_list(
             "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json")
-        proxies = proxies['proxies']
+        utils.convert_to_proxy_dict_format(proxies)
         ic(len(proxies))
-        proxies = await get_valid_proxies(proxies, min_working_proxies=20, max_working_proxies=200)
+        proxies = await get_valid_proxies(proxies, max_working_proxies=20)
         ic(proxies[:2])
         ic(len(proxies))
 

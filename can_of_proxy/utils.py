@@ -1,5 +1,5 @@
 import re
-from typing import Union, TypedDict
+from typing import Union, TypedDict, List
 
 
 def _get_port(port: str) -> Union[int, None]:
@@ -49,7 +49,7 @@ class URL:
         return protocol, ip, port
 
     def __str__(self):
-        return f"URL(protocol={self.protocol}, ip={self.ip}, port={self.port})"
+        return f"URL(protocol={self.protocol:<6}, ip={self.ip:<15}, port={self.port:<5})"
 
     def __repr__(self):
         return self.url
@@ -90,6 +90,49 @@ class ProxiflyDict(TypedDict):
 def proxifly_to_proxy_dict(proxifly_dict: ProxiflyDict) -> ProxyDict:
     url = URL(proxifly_dict["proxy"])
     return {"url": url, "country": proxifly_dict["geolocation"]["country"], "anonymity": proxifly_dict["anonymity"]}
+
+
+def _convert_to_proxy_dict(proxy_store_dict: dict) -> ProxyDict:
+    # Search for protocol, ip, and port first in the base dict
+    protocol = proxy_store_dict.get("protocol")
+    ip = proxy_store_dict.get("ip")
+    port = proxy_store_dict.get("port")
+
+    # If protocol, ip, and port are not available, search for url or proxy
+    if not (protocol and ip and port):
+        url_str = proxy_store_dict.get("url") or proxy_store_dict.get("proxy")
+        if url_str:
+            url = URL(url_str)
+        else:
+            raise ValueError("Proxy dictionary must contain 'url' or 'proxy' key or 'ip', 'port', 'protocol' keys")
+    else:
+        url = URL(f"{protocol}://{ip}:{port}")
+
+    # Search for country in the base dict first, then in all other dicts
+    country = proxy_store_dict.get("country")
+    if not country:
+        for value in proxy_store_dict.values():
+            if isinstance(value, dict):
+                country = value.get("country")
+                if country:
+                    break
+
+    # Search for anonymity in the base dict first, then in all other dicts
+    anonymity = proxy_store_dict.get("anonymity")
+    if not anonymity:
+        for value in proxy_store_dict.values():
+            if isinstance(value, dict):
+                anonymity = value.get("anonymity")
+                if anonymity:
+                    break
+
+    return ProxyDict(url=url, country=country, anonymity=anonymity)
+
+
+def convert_to_proxy_dict_format(proxy_dict_list: List[dict]) -> List[ProxyDict]:
+    if isinstance(proxy_dict_list, dict) and "proxies" in proxy_dict_list:
+        proxy_dict_list = proxy_dict_list['proxies']
+    return [_convert_to_proxy_dict(proxy_dict) for proxy_dict in proxy_dict_list]
 
 
 class NoProxyAvailable(Exception):
