@@ -3,7 +3,6 @@ from typing import Tuple, List, Union, Dict
 import aiohttp
 from icecream import ic
 from utils import URL
-import orjson
 
 
 async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
@@ -25,12 +24,9 @@ async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
         return None
 
     try:
-        async with session.get("https://httpbin.org/ip", proxy=repr(url), allow_redirects=True, timeout=15,
+        async with session.get("https://httpbin.org/ip", proxy=repr(url), allow_redirects=True, timeout=20,
                                ssl=use_ssl) as response:
-            response_data = await response.read()
-            response_data = response_data.decode('utf-8')
-            response_ip = orjson.loads(response_data).get('origin')
-            if response.status == 200 and response_ip == url.ip:
+            if response.status == 200:
                 ic(f"Valid: {url}")
                 return url
             return None
@@ -38,9 +34,8 @@ async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
         return None
 
 
-async def get_valid_proxies(proxies: List[Dict], simultaneous_proxy_requests: int = 500) -> List[str]:
+async def get_valid_proxies(proxies: List[Dict], simultaneous_proxy_requests: int = 200) -> List[str]:
     """Dict must contain 'url' key or preferably 'ip' and 'port' keys."""
-    valid_proxies = []
     semaphore = asyncio.Semaphore(simultaneous_proxy_requests)
 
     async with aiohttp.ClientSession() as session:
