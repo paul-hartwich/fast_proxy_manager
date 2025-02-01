@@ -27,9 +27,15 @@ def _get_ip(ip: str) -> Union[str, None]:
 
 
 class URL:
-    def __init__(self, url: str):
-        self.url = url
-        self.protocol, self.ip, self.port = self._parse_url(url)
+    def __init__(self, url: Union[str, 'URL']):
+        if isinstance(url, URL):
+            self.url = url.url
+            self.protocol = url.protocol
+            self.ip = url.ip
+            self.port = url.port
+        else:
+            self.url = url
+            self.protocol, self.ip, self.port = self._parse_url(url)
 
     def _parse_url(self, url: str):
         protocol, ip, port = None, None, None
@@ -70,28 +76,6 @@ class ProxyDict(TypedDict):
     anonymity: str | None
 
 
-class GeolocationDict(TypedDict):
-    """
-    {"country": str, "city": str}
-    """
-    country: str
-    city: str
-
-
-class ProxiflyDict(TypedDict):
-    """
-    {"proxy": str, "anonymity": str, "geolocation": dict}
-    """
-    proxy: str
-    anonymity: str
-    geolocation: GeolocationDict
-
-
-def proxifly_to_proxy_dict(proxifly_dict: ProxiflyDict) -> ProxyDict:
-    url = URL(proxifly_dict["proxy"])
-    return {"url": url, "country": proxifly_dict["geolocation"]["country"], "anonymity": proxifly_dict["anonymity"]}
-
-
 def _convert_to_proxy_dict(proxy_store_dict: dict) -> ProxyDict:
     # Search for protocol, ip, and port first in the base dict
     protocol = proxy_store_dict.get("protocol")
@@ -108,14 +92,24 @@ def _convert_to_proxy_dict(proxy_store_dict: dict) -> ProxyDict:
     else:
         url = URL(f"{protocol}://{ip}:{port}")
 
-    # Search for country in the base dict first, then in all other dicts
-    country = proxy_store_dict.get("country")
+    # Search for country code
+    country = proxy_store_dict.get("countryCode")
     if not country:
         for value in proxy_store_dict.values():
             if isinstance(value, dict):
-                country = value.get("country")
+                country = value.get("countryCode")
                 if country:
                     break
+
+    # Search for country in the base dict first, then in all other dicts
+    if not country:
+        country = proxy_store_dict.get("country")
+        if not country:
+            for value in proxy_store_dict.values():
+                if isinstance(value, dict):
+                    country = value.get("country")
+                    if country:
+                        break
 
     # Search for anonymity in the base dict first, then in all other dicts
     anonymity = proxy_store_dict.get("anonymity")

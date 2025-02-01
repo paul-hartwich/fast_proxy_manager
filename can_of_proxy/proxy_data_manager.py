@@ -2,8 +2,9 @@ from random import choice
 from pathlib import Path
 from file_ops import read_msgpack, write_msgpack
 from json import JSONDecodeError
-from typing import Optional, List
+from typing import Optional, List, Union
 from utils import ProxyDict, NoProxyAvailable, URL
+from icecream import ic
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
@@ -117,37 +118,22 @@ class ProxyDataManager:
                 self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
-    def add_proxy(self, proxies: URL | List[ProxyDict], country: str | None = None, anonymity: str | None = None):
+    def add_proxy(self, proxies: List[ProxyDict]):
         """
         Add a proxy to the list.
         You can add a list of proxies at once, but all of them will have the same country and anonymity.
         If a list of dictionaries is used, other params will be ignored and the data will be used from the dictionary.
         """
-        if isinstance(proxies, URL):
-            proxy_data = {
-                "protocol": proxies.scheme,
-                "url": f"{proxies.scheme}://{proxies.host}:{proxies.port}",
-                "country": country,
-                "anonymity": anonymity,
+        for proxy in proxies:
+            self.proxies.append({
+                "protocol": URL(proxy["url"]).port,
+                "url": repr(proxy["url"]),
+                "country": proxy.get("country"),
+                "anonymity": proxy.get("anonymity"),
                 "times_failed": 0,
                 "times_succeed": 0,
                 "times_failed_in_row": 0
-            }
-            self.proxies.append(proxy_data)
-
-        elif isinstance(proxies, list) and all(isinstance(proxy, dict) for proxy in proxies):
-            for proxy in proxies:
-                self.proxies.append({
-                    "protocol": proxy["url"].scheme,
-                    "url": f"{proxy['url'].scheme}://{proxy['url'].host}:{proxy['url'].port}",
-                    "country": proxy.get("country", country),
-                    "anonymity": proxy.get("anonymity", anonymity),
-                    "times_failed": 0,
-                    "times_succeed": 0,
-                    "times_failed_in_row": 0
-                })
-        else:
-            raise ValueError("Invalid proxy type. Only URL or List[ProxyDict] are supported.")
+            })
 
     def rm_proxy(self, index: int):
         if 0 <= index < len(self.proxies):
@@ -162,16 +148,16 @@ class ProxyDataManager:
         self.proxies = []
         self._write_data()
 
-    def get_proxy(self, return_type: str = "url", preferred_protocol: list[str] | str | None = None,
-                  preferred_country: list[str] | str | None = None,
-                  preferred_anonymity: list[str] | str | None = None) -> URL | None:
-        """Return a random proxy from the list. If no proxy is found, return None. Never returns the same proxy twice."""
-
+    def get_proxy(self, return_type: str = "url", preferred_protocol: Union[list[str], str, None] = None,
+                  preferred_country: Union[list[str], str, None] = None,
+                  preferred_anonymity: Union[list[str], str, None] = None) -> URL | None:
+        """
+        Return a random proxy from the list.
+        If no proxy is found, return None.
+        Never returns the same proxy twice.
+        When preferred is None, it will take anything
+        """
         preferred_protocol = _validate_protocol(preferred_protocol)
-        preferred_country = preferred_country if isinstance(preferred_country, list) else [preferred_country]
-        preferred_anonymity = preferred_anonymity if isinstance(preferred_anonymity, list) else [
-            preferred_anonymity]
-
         if len(self.proxies) == 1:
             self.last_proxy_index = 0
             return self.proxies[0][return_type]
@@ -201,11 +187,17 @@ class ProxyDataManager:
 
 
 if __name__ == '__main__':
-    manager = ProxyDataManager()
-    manager.rm_all_proxies()
-    manager.add_proxy(URL("http://188.114.98.233:80"))
+    # Ensure that proxies are added to the manager
+    manager = ProxyDataManager(msgpack=None)
+    manager.add_proxy([
+        {"url": "http://188.114.98.233:80", "country": "US", "anonymity": "elite"},
+        {"url": "http://172.67.133.23:80", "country": "US", "anonymity": "elite"}
+    ])
     manager.update_data()
-    print("Proxies: ", len(manager))
-    print("Proxy: ", manager.get_proxy())
 
-    print(str(URL("http://188.114.98.233:80")) == "http://188.114.98.233")
+    # Fetch a proxy without any specific criteria
+    try:
+        proxy = manager.get_proxy(preferred_protocol=None, preferred_country=None, preferred_anonymity=None)
+        print("Proxy:", proxy)
+    except NoProxyAvailable as e:
+        print(e)

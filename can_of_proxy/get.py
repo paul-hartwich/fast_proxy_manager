@@ -1,6 +1,10 @@
+import logging
+from typing import Union, List
+
 import orjson
 import asyncio
-from utils import URL
+
+from utils import URL, ProxyDict, convert_to_proxy_dict_format
 import aiohttp
 
 
@@ -29,44 +33,40 @@ async def get_request(url: str, retries: int = 1, timeout: int = 10,
                 await session.close()
 
 
-async def github_proxifly():
+async def fetch_github_proxifly() -> List[ProxyDict]:
     url = "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.json"
     response = await get_request(url, retries=3, timeout=15)
 
     try:
         proxies = orjson.loads(response)
-        return proxies
+        return convert_to_proxy_dict_format(proxies)
     except orjson.JSONDecodeError:
-        print("Failed to parse JSON")
+        logging.error("Failed to parse JSON")
         return []
 
 
-async def custom_json_proxy_list(url: str) -> list:
+async def fetch_json_proxy_list(url: str) -> List[ProxyDict]:
+    """Fetches a list of proxies from a website"""
     response = await get_request(url, retries=3, timeout=15)
 
     try:
         proxies = orjson.loads(response)
-        return proxies
+        return convert_to_proxy_dict_format(proxies)
     except orjson.JSONDecodeError:
-        print("Failed to parse JSON")
+        logging.error("Failed to parse JSON")
         return []
 
 
 if __name__ == '__main__':
-    from test_speed import Timer
     from icecream import ic
+    from utils import convert_to_proxy_dict_format
 
 
     async def main():
-        with Timer():
-            proxies = await github_proxifly()
-            ic(len(proxies))
-            ic(proxies[:2])
-
-        with Timer():
-            proxies = await custom_json_proxy_list(
-                "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json")
-            ic(proxies['proxies'][:2])
+        proxies = await fetch_json_proxy_list(
+            "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json")
+        ic(len(proxies))
+        ic(proxies[:2])
 
 
     asyncio.run(main())
