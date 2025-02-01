@@ -2,3 +2,4 @@ aiohttp~=3.11.11
 msgpack~=1.1.0
 orjson~=3.10.15
 icecream~=2.1.4
+pandas~=2.2.3

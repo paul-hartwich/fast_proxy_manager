@@ -1,9 +1,12 @@
+from multiprocessing.util import debug
+
+import pandas as pd
 from random import choice
 from pathlib import Path
 from file_ops import read_msgpack, write_msgpack
 from json import JSONDecodeError
 from typing import Optional, List, Union
-from utils import ProxyDict, NoProxyAvailable, URL, FastAccessData
+from utils import ProxyDict, NoProxyAvailable, URL
 from icecream import ic
 
 
@@ -19,11 +22,12 @@ def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
 
 
 class ProxyDataManager:
-    def __init__(self, msgpack: Optional[Path] = Path("proxies.msgpack"),
-                 allowed_fails_in_row: int = 3,
+    def __init__(self, msgpack: Optional[Path] = Path("proxy_data"),
+                 allowed_fails_in_row: int = 2,
                  fails_without_check: int = 2,
                  percent_failed_to_remove: float = 0.5,
-                 min_proxies: int = 0):
+                 min_proxies: int = 0,
+                 debug: bool = False):
         """
         Get add and remove proxies from a list with some extra features.
 
@@ -39,72 +43,39 @@ class ProxyDataManager:
         self.allowed_fails_in_row = allowed_fails_in_row
         self.fails_without_check = fails_without_check
         self.percent_failed_to_remove = percent_failed_to_remove
+        self.min_proxies = min_proxies
+
+        self.debug = debug
 
         self.msgpack = msgpack if msgpack else None
         self.proxies = self._load_proxies()
-        self.proxy_data = self._get_proxy_data()
         self.last_proxy_index = None
 
-        self.min_proxies = min_proxies
-
-    def _get_proxy_data(self) -> ProxyDict:
-        return
-
     def _load_proxies(self):
+        columns = ["url", "protocol", "country", "anonymity", "times_failed", "times_succeed", "times_failed_in_row"]
         if self.msgpack:
             if self.msgpack.exists() and self.msgpack.stat().st_size > 0:
                 try:
-                    return read_msgpack(self.msgpack)
+                    proxies = read_msgpack(self.msgpack)
+                    return pd.DataFrame(proxies, columns=columns)
                 except JSONDecodeError:
-                    return []
+                    return pd.DataFrame(columns=columns)
             self.msgpack.touch(exist_ok=True)
-        return []
+        return pd.DataFrame(columns=columns)
 
     def _write_data(self):
         if self.msgpack:
-            write_msgpack(self.msgpack, self.proxies)
+            write_msgpack(self.msgpack, self.proxies.to_dict(orient="records"))
 
     def _rm_duplicate_proxies(self):
-        """
-        Remove duplicate proxies from the list which have the same URL,
-        prefers to keep the one with the most data.
-        """
-        seen = {}
-        for proxy in self.proxies:
-            url = proxy['url']
-            if url in seen:
-                existing_proxy = seen[url]
-                if (proxy['times_failed'] + proxy['times_succeed']) > (
-                        existing_proxy['times_failed'] + existing_proxy['times_succeed']):
-                    # Merge country and anonymity data if they are None in the existing proxy
-                    if existing_proxy['country'] is None and proxy['country'] is not None:
-                        existing_proxy['country'] = proxy['country']
-                    if existing_proxy['anonymity'] is None and proxy['anonymity'] is not None:
-                        existing_proxy['anonymity'] = proxy['anonymity']
-                    seen[url] = proxy
-                else:
-                    # Merge country and anonymity data if they are None in the existing proxy
-                    if existing_proxy['country'] is None and proxy['country'] is not None:
-                        existing_proxy['country'] = proxy['country']
-                    if existing_proxy['anonymity'] is None and proxy['anonymity'] is not None:
-                        existing_proxy['anonymity'] = proxy['anonymity']
-            else:
-                seen[url] = proxy
-        self.proxies = list(seen.values())
+        self.proxies.drop_duplicates(subset="url", keep="last", inplace=True)
 
     def update_data(self, remove_duplicates: bool = True):
-        """It has to be called after proxies got added. NOT REMOVED! (already handled)"""
         if remove_duplicates:
             self._rm_duplicate_proxies()
         self._write_data()
 
     def force_rm_last_proxy(self):
-        """
-        LAST USED PROXY WILL BE REMOVED! Good for sorting out all the bad proxies.
-
-        Check len(manager) before and after to see if it worked.
-        If no proxy left, you should try other sources for proxy.
-        """
         if self.last_proxy_index is not None:
             self.rm_proxy(self.last_proxy_index)
 
@@ -112,40 +83,38 @@ class ProxyDataManager:
         if self.last_proxy_index is None or self.last_proxy_index >= len(self.proxies):
             return
 
-        proxy = self.proxies[self.last_proxy_index]
+        proxy = self.proxies.iloc[self.last_proxy_index]
         if success:
-            proxy["times_succeed"] += 1
-            proxy["times_failed_in_row"] = 0
+            self.proxies.at[self.last_proxy_index, "times_succeed"] += 1
+            self.proxies.at[self.last_proxy_index, "times_failed_in_row"] = 0
         else:
-            proxy["times_failed"] += 1
-            proxy["times_failed_in_row"] += 1
-            if proxy["times_failed_in_row"] > self.allowed_fails_in_row or \
-                    proxy["times_failed"] > self.fails_without_check and \
-                    proxy["times_failed"] / (
-                    proxy["times_failed"] + proxy["times_succeed"]) > self.percent_failed_to_remove:
+            self.proxies.at[self.last_proxy_index, "times_failed"] += 1
+            self.proxies.at[self.last_proxy_index, "times_failed_in_row"] += 1
+            if self.proxies.at[self.last_proxy_index, "times_failed_in_row"] > self.allowed_fails_in_row:
+                if self.debug:
+                    print(
+                        f"Removing proxy {proxy['url']} due to too many failures in a row. f:{self.proxies.at[self.last_proxy_index, "times_failed"]} s:{self.proxies.at[self.last_proxy_index, "times_succeed"]} f_in_row:{self.proxies.at[self.last_proxy_index, "times_failed_in_row"]}")
+                self.rm_proxy(self.last_proxy_index)
+            elif (self.proxies.at[self.last_proxy_index, "times_failed"] > self.fails_without_check and
+                  self.proxies.at[self.last_proxy_index, "times_failed"] /
+                  (self.proxies.at[self.last_proxy_index, "times_failed"] + self.proxies.at[
+                      self.last_proxy_index, "times_succeed"]) > self.percent_failed_to_remove):
+                if self.debug:
+                    print(
+                        f"Removing proxy {proxy['url']} due to bad success-failure ratio. f:{self.proxies.at[self.last_proxy_index, "times_failed"]} s:{self.proxies.at[self.last_proxy_index, "times_succeed"]} f_in_row:{self.proxies.at[self.last_proxy_index, "times_failed_in_row"]}")
                 self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
     def add_proxy(self, proxies: List[ProxyDict]):
-        """
-        Add a proxy to the list.
-        You can add a list of proxies at once, but all of them will have the same country and anonymity.
-        If a list of dictionaries is used, other params will be ignored and the data will be used from the dictionary.
-        """
-        for proxy in proxies:
-            self.proxies.append({
-                "protocol": URL(proxy["url"]).port,
-                "url": repr(proxy["url"]),
-                "country": proxy.get("country"),
-                "anonymity": proxy.get("anonymity"),
-                "times_failed": 0,
-                "times_succeed": 0,
-                "times_failed_in_row": 0
-            })
+        new_proxies = pd.DataFrame(proxies)
+        new_proxies = new_proxies.reindex(columns=self.proxies.columns, fill_value=0)
+        self.proxies = pd.concat([self.proxies, new_proxies], ignore_index=True)
+        self.update_data(remove_duplicates=True)
 
     def rm_proxy(self, index: int):
         if 0 <= index < len(self.proxies):
-            self.proxies.pop(index)
+            self.proxies.drop(index, inplace=True)
+            self.proxies.reset_index(drop=True, inplace=True)
             if self.last_proxy_index is not None and index < self.last_proxy_index:
                 self.last_proxy_index -= 1
             self._write_data()
@@ -153,7 +122,8 @@ class ProxyDataManager:
             raise IndexError("Proxy does not exist")
 
     def rm_all_proxies(self):
-        self.proxies = []
+        self.proxies = pd.DataFrame(
+            columns=["url", "protocol", "country", "anonymity", "times_failed", "times_succeed", "times_failed_in_row"])
         self._write_data()
 
     def get_proxy(self, return_type: str = "url", protocol: Union[list[str], str, None] = None,
@@ -162,48 +132,79 @@ class ProxyDataManager:
                   exclude_protocol: Union[list[str], str, None] = None,
                   exclude_country: Union[list[str], str, None] = None,
                   exclude_anonymity: Union[list[str], str, None] = None) -> URL | None:
-        """
-        Return a random proxy from the list.
-        If no proxy is found, return None.
-        Never returns the same proxy twice.
-        When preferred is None, it will take anything
-        """
-
         if self.min_proxies and len(self.proxies) < self.min_proxies:
             raise NoProxyAvailable("Not enough proxies available. Fetch more proxies.")
 
-        preferred_protocol = _validate_protocol(protocol)
-        if len(self.proxies) == 1:
-            self.last_proxy_index = 0
-            return self.proxies[0][return_type]
+        query = []
+        if protocol:
+            protocol = _validate_protocol(protocol)
+            if isinstance(protocol, str):
+                protocol = [protocol]
+            query.append(self.proxies["protocol"].isin(protocol))
+        if country:
+            if isinstance(country, str):
+                country = [country]
+            query.append(self.proxies["country"].isin(country))
+        if anonymity:
+            if isinstance(anonymity, str):
+                anonymity = [anonymity]
+            query.append(self.proxies["anonymity"].isin(anonymity))
+        if exclude_protocol:
+            exclude_protocol = _validate_protocol(exclude_protocol)
+            if isinstance(exclude_protocol, str):
+                exclude_protocol = [exclude_protocol]
+            query.append(~self.proxies["protocol"].isin(exclude_protocol))
+        if exclude_country:
+            if isinstance(exclude_country, str):
+                exclude_country = [exclude_country]
+            query.append(~self.proxies["country"].isin(exclude_country))
+        if exclude_anonymity:
+            if isinstance(exclude_anonymity, str):
+                exclude_anonymity = [exclude_anonymity]
+            query.append(~self.proxies["anonymity"].isin(exclude_anonymity))
 
-        if (
-                protocol and anonymity and country and exclude_protocol and exclude_anonymity and exclude_country) is None:  # True, if all are None
-            ic("FAST")
-            selected_proxy = choice(self.proxies)
-            self.last_proxy_index = self.proxies.index(selected_proxy)
-            return selected_proxy[return_type]
-
+        if query:
+            filtered_proxies = self.proxies.loc[pd.concat(query, axis=1).all(axis=1)]
         else:
-            ic("SLOW")
-            return
+            filtered_proxies = self.proxies
+
+        if filtered_proxies.empty:
+            raise NoProxyAvailable("No proxy found with the given parameters.")
+
+        selected_proxy = filtered_proxies.sample(1).iloc[0]
+        self.last_proxy_index = self.proxies.index[self.proxies["url"] == selected_proxy["url"]].tolist()[0]
+        return selected_proxy[return_type]
 
     def __len__(self):
         return len(self.proxies)
 
 
 if __name__ == '__main__':
-    # Ensure that proxies are added to the manager
-    manager = ProxyDataManager(msgpack=None)
-    manager.add_proxy([
-        {"url": "http://188.114.98.233:80", "country": "US", "anonymity": "elite"},
-        {"url": "http://172.67.133.23:80", "country": "US", "anonymity": "elite"}
-    ])
-    manager.update_data()
+    manager = ProxyDataManager(debug=True)
+    manager.rm_all_proxies()
+    # Add a proxy
+    proxy = [{
+        "url": "http://172.67.133.23:80",
+        "protocol": "http",
+        "country": "US",
+        "anonymity": "elite"
+    },
+        {
+            "url": "http://122.67.133.23:80",
+            "protocol": "http",
+            "country": "US",
+            "anonymity": "elite"
+        }]
+    manager.add_proxy(proxy)
+    ic(len(manager))
 
-    # Fetch a proxy without any specific criteria
-    try:
-        proxyy = manager.get_proxy()
-        print("Proxy:", proxyy)
-    except NoProxyAvailable as e:
-        print(e)
+    # Simulate a success
+    manager.get_proxy(protocol="http", country="US", anonymity="elite")
+
+    manager.feedback_proxy(success=False)
+    manager.feedback_proxy(success=False)
+
+    ic(len(manager))
+    manager.feedback_proxy(success=False)
+    ic(len(manager))
+    ic(manager.get_proxy(protocol="http", country="US", anonymity="elite"))

@@ -67,15 +67,6 @@ class URL:
         return self.protocol is not None and self.ip is not None and self.port is not None
 
 
-class FastAccessData(TypedDict):
-    http_count: int
-    https_count: int
-    socks4_count: int
-    socks5_count: int
-    country: dict[int]
-    anonymity: dict[int]
-
-
 class ProxyDict(TypedDict):
     """
     {"url": URL, "country": str, "anonymity": str}
