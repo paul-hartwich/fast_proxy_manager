@@ -3,7 +3,7 @@ from pathlib import Path
 from file_ops import read_msgpack, write_msgpack
 from json import JSONDecodeError
 from typing import Optional, List, Union
-from utils import ProxyDict, NoProxyAvailable, URL
+from utils import ProxyDict, NoProxyAvailable, URL, FastAccessData
 from icecream import ic
 
 
@@ -14,7 +14,7 @@ def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
         protocols = [protocols]
     for protocol in protocols:
         if protocol not in ("http", "https", "socks4", "socks5"):
-            raise ValueError("Invalid protocol used to create ProxyDataManager")
+            raise ValueError(f"You can't use this protocol: {protocol}")
     return protocols
 
 
@@ -22,7 +22,8 @@ class ProxyDataManager:
     def __init__(self, msgpack: Optional[Path] = Path("proxies.msgpack"),
                  allowed_fails_in_row: int = 3,
                  fails_without_check: int = 2,
-                 percent_failed_to_remove: float = 0.5):
+                 percent_failed_to_remove: float = 0.5,
+                 min_proxies: int = 0):
         """
         Get add and remove proxies from a list with some extra features.
 
@@ -32,6 +33,7 @@ class ProxyDataManager:
         :param fails_without_check: How many times a proxy can fail before being checked for percentage of fails to remove.
         :param percent_failed_to_remove: Percentage of fails to remove a proxy.
         Example: 0.5 means 50% of tries are fails, if higher than that it gets removed.
+        :param min_proxies: When len(proxies) < min_proxies, fetch more proxies
         """
 
         self.allowed_fails_in_row = allowed_fails_in_row
@@ -40,7 +42,13 @@ class ProxyDataManager:
 
         self.msgpack = msgpack if msgpack else None
         self.proxies = self._load_proxies()
+        self.proxy_data = self._get_proxy_data()
         self.last_proxy_index = None
+
+        self.min_proxies = min_proxies
+
+    def _get_proxy_data(self) -> ProxyDict:
+        return
 
     def _load_proxies(self):
         if self.msgpack:
@@ -148,39 +156,37 @@ class ProxyDataManager:
         self.proxies = []
         self._write_data()
 
-    def get_proxy(self, return_type: str = "url", preferred_protocol: Union[list[str], str, None] = None,
-                  preferred_country: Union[list[str], str, None] = None,
-                  preferred_anonymity: Union[list[str], str, None] = None) -> URL | None:
+    def get_proxy(self, return_type: str = "url", protocol: Union[list[str], str, None] = None,
+                  country: Union[list[str], str, None] = None,
+                  anonymity: Union[list[str], str, None] = None,
+                  exclude_protocol: Union[list[str], str, None] = None,
+                  exclude_country: Union[list[str], str, None] = None,
+                  exclude_anonymity: Union[list[str], str, None] = None) -> URL | None:
         """
         Return a random proxy from the list.
         If no proxy is found, return None.
         Never returns the same proxy twice.
         When preferred is None, it will take anything
         """
-        preferred_protocol = _validate_protocol(preferred_protocol)
+
+        if self.min_proxies and len(self.proxies) < self.min_proxies:
+            raise NoProxyAvailable("Not enough proxies available. Fetch more proxies.")
+
+        preferred_protocol = _validate_protocol(protocol)
         if len(self.proxies) == 1:
             self.last_proxy_index = 0
             return self.proxies[0][return_type]
 
-        preferred_proxies = [
-            proxy for proxy in self.proxies
-            if (not preferred_protocol or proxy["protocol"] in preferred_protocol) and
-               (not preferred_country or proxy["country"] in preferred_country) and
-               (not preferred_anonymity or proxy["anonymity"] in preferred_anonymity)
-        ]
+        if (
+                protocol and anonymity and country and exclude_protocol and exclude_anonymity and exclude_country) is None:  # True, if all are None
+            ic("FAST")
+            selected_proxy = choice(self.proxies)
+            self.last_proxy_index = self.proxies.index(selected_proxy)
+            return selected_proxy[return_type]
 
-        if not preferred_proxies:
-            raise NoProxyAvailable("No proxy found with the given parameters.")
-
-        if len(preferred_proxies) > 1 and self.last_proxy_index is not None:
-            preferred_proxies = [
-                proxy for proxy in preferred_proxies
-                if self.proxies.index(proxy) != self.last_proxy_index
-            ]
-
-        selected_proxy = choice(preferred_proxies)
-        self.last_proxy_index = self.proxies.index(selected_proxy)
-        return selected_proxy[return_type]
+        else:
+            ic("SLOW")
+            return
 
     def __len__(self):
         return len(self.proxies)
@@ -197,7 +203,7 @@ if __name__ == '__main__':
 
     # Fetch a proxy without any specific criteria
     try:
-        proxy = manager.get_proxy(preferred_protocol=None, preferred_country=None, preferred_anonymity=None)
-        print("Proxy:", proxy)
+        proxyy = manager.get_proxy()
+        print("Proxy:", proxyy)
     except NoProxyAvailable as e:
         print(e)

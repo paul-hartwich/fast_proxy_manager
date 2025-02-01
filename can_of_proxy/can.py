@@ -77,12 +77,7 @@ if __name__ == '__main__':
         can.manager.update_data()
         ic(len(can.manager))
 
-        print(can.manager.get_proxy())
-        print(can.manager.get_proxy())
-        print(can.manager.get_proxy())
-        print(can.manager.get_proxy())
-        print(can.manager.get_proxy())
-        print(can.manager.get_proxy())
+        print(can.manager.get_proxy(preferred_protocol="http"))
 
 
     asyncio.run(main())
