@@ -18,14 +18,11 @@ async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
         url = URL(url)
         protocol = url.protocol
 
-    use_ssl: bool = proxy.get('ssl', False)
-
     if protocol not in supported_protocols:
         return None
 
     try:
-        async with session.get("https://httpbin.org/ip", proxy=repr(url), allow_redirects=True, timeout=20,
-                               ssl=use_ssl) as response:
+        async with session.get("https://httpbin.org/ip", proxy=repr(url), allow_redirects=True, timeout=20) as response:
             if response.status == 200:
                 ic(f"Valid: {url}")
                 return url
@@ -34,20 +31,26 @@ async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
         return None
 
 
-async def get_valid_proxies(proxies: List[Dict], simultaneous_proxy_requests: int = 200) -> List[str]:
+async def get_valid_proxies(proxies: List[Dict], min_working_proxies: int, max_working_proxies: int,
+                            simultaneous_proxy_requests: int = 200) -> List[str]:
     """Dict must contain 'url' key or preferably 'ip' and 'port' keys."""
+    valid_proxies = []
     semaphore = asyncio.Semaphore(simultaneous_proxy_requests)
 
     async with aiohttp.ClientSession() as session:
         async def limited_is_proxy_valid(proxy: Dict) -> Union[str, None]:
             async with semaphore:
-                return await _is_proxy_valid(proxy, session)
+                if len(valid_proxies) >= max_working_proxies:
+                    return None
+                result = await _is_proxy_valid(proxy, session)
+                if result:
+                    valid_proxies.append(result)
+                return result
 
         tasks = [limited_is_proxy_valid(proxy) for proxy in proxies]
-        results = await asyncio.gather(*tasks)
-        valid_proxies = [result for result in results if result is not None]
+        await asyncio.gather(*tasks)
 
-    return valid_proxies
+    return valid_proxies[:max_working_proxies]
 
 
 if __name__ == '__main__':
@@ -59,7 +62,7 @@ if __name__ == '__main__':
             "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json")
         proxies = proxies['proxies']
         ic(len(proxies))
-        proxies = await get_valid_proxies(proxies)
+        proxies = await get_valid_proxies(proxies, min_working_proxies=20, max_working_proxies=200)
         ic(proxies[:2])
         ic(len(proxies))
 
