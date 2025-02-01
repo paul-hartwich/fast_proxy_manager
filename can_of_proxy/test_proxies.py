@@ -12,7 +12,7 @@ class ProxyConfig:
 
 
 async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
-                          supported_protocols: Tuple[str] = ('http', 'https')) -> Tuple[bool, Union[str, None]]:
+                          supported_protocols: Tuple[str] = ('http', 'https')) -> Union[str, None]:
     """Proxy dictionary must contain 'url' or 'proxy' key or 'ip', 'port', 'protocol' keys"""
     try:
         protocol = proxy['protocol']
@@ -32,22 +32,23 @@ async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
                                timeout=ProxyConfig.timeout, headers=ProxyConfig.headers) as response:
             if response.status == 200:
                 ic(f"Valid: {url}")
-                return True, str(url)
-            else:
-                ic(f"Invalid: {url}")
-                return False, None
+                return str(url)
+            return None
     except aiohttp.ClientHttpProxyError as e:
-        ic(f"Proxy error: {e}")
-        return False, None
+        print(f"Proxy error: {e}")
+        return None
     except aiohttp.ClientConnectionError as e:
-        ic(f"Connection closed: {e}")
-        return False, None
+        print(f"Connection closed: {e}")
+        return None
     except asyncio.TimeoutError:
-        ic(f"Timeout error: {url}")
-        return False, None
+        print(f"Timeout error: {url}")
+        return None
     except Exception as e:
-        ic(f"Unexpected error: {e}")
-        return False, None
+        print(f"Unexpected error: {e}")
+        return None
+    except ConnectionResetError as e:
+        print(f"Connection reset error: {e}")
+        return None
 
 
 async def get_valid_proxies(proxies: List[Dict]) -> Tuple[bool, Union[List[Dict], None]]:
