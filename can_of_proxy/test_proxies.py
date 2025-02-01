@@ -5,7 +5,8 @@ from icecream import ic
 from utils import URL
 
 
-async def _is_proxy_valid(proxy: Dict, supported_protocols: Tuple[str] = ('http', 'https')) -> Union[str, None]:
+async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
+                          supported_protocols: Tuple[str] = ('http', 'https')) -> Union[str, None]:
     """Proxy dictionary must contain 'url' or 'proxy' key or 'ip', 'port', 'protocol' keys"""
     try:
         protocol = proxy['protocol']
@@ -17,37 +18,39 @@ async def _is_proxy_valid(proxy: Dict, supported_protocols: Tuple[str] = ('http'
         url = URL(url)
         protocol = url.protocol
 
-    use_ssl: bool = False
-    if proxy.get('ssl') is True:
-        use_ssl = True
+    use_ssl: bool = proxy.get('ssl', False)
 
     if protocol not in supported_protocols:
         return None
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get("https://httpbin.org/ip", proxy=url,
-                                   allow_redirects=True,
-                                   timeout=15,
-                                   ssl=use_ssl) as response:
-                if response.status == 200:
-                    ic(f"Valid: {url}")
-                    return url
-                return None
-    except (asyncio.TimeoutError, aiohttp.ClientError, AssertionError, OSError, RuntimeError,
-            ConnectionResetError, aiohttp.ClientConnectionError, aiohttp.ClientHttpProxyError):
-        print("Proxy is invalid")
+        async with session.get("https://httpbin.org/ip", proxy=url, allow_redirects=True, timeout=15,
+                               ssl=use_ssl) as response:
+            if response.status == 200:
+                ic(f"Valid: {url}")
+                return url
+            return None
+    except (asyncio.TimeoutError, aiohttp.ClientError):
         return None
 
 
-async def get_valid_proxies(proxies: List[Dict]) -> Tuple[bool, Union[List[Dict], None]]:
+async def get_valid_proxies(proxies: List[Dict], simultaneous_proxy_requests: int = 500) -> List[str]:
     """Dict must contain 'url' key or preferably 'ip' and 'port' keys."""
     valid_proxies = []
-    for proxy in proxies:
-        valid = await _is_proxy_valid(proxy)
-        if valid is not None:
-            valid_proxies.append(valid)
-            ic(f"Valid: {valid}")
+    semaphore = asyncio.Semaphore(simultaneous_proxy_requests)
+
+    async with aiohttp.ClientSession() as session:
+        async def limited_is_proxy_valid(proxy: Dict) -> Union[str, None]:
+            async with semaphore:
+                return await _is_proxy_valid(proxy, session)
+
+        tasks = [limited_is_proxy_valid(proxy) for proxy in proxies]
+        for task in asyncio.as_completed(tasks):
+            valid = await task
+            if valid is not None:
+                valid_proxies.append(valid)
+                ic(f"Valid: {valid}")
+
     return valid_proxies
 
 
