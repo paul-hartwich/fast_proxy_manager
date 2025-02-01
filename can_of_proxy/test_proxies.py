@@ -3,6 +3,7 @@ from typing import Tuple, List, Union, Dict
 import aiohttp
 from icecream import ic
 from utils import URL
+import orjson
 
 
 async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
@@ -10,7 +11,7 @@ async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
     """Proxy dictionary must contain 'url' or 'proxy' key or 'ip', 'port', 'protocol' keys"""
     try:
         protocol = proxy['protocol']
-        url = f"{protocol}://{proxy['ip']}:{str(proxy['port'])}"
+        url = URL(f"{protocol}://{proxy['ip']}:{str(proxy['port'])}")
     except KeyError:
         url = proxy.get('url') or proxy.get('proxy')
         if not url:
@@ -24,13 +25,16 @@ async def _is_proxy_valid(proxy: Dict, session: aiohttp.ClientSession,
         return None
 
     try:
-        async with session.get("https://httpbin.org/ip", proxy=url, allow_redirects=True, timeout=15,
+        async with session.get("https://httpbin.org/ip", proxy=repr(url), allow_redirects=True, timeout=15,
                                ssl=use_ssl) as response:
-            if response.status == 200:
+            response_data = await response.read()
+            response_data = response_data.decode('utf-8')
+            response_ip = orjson.loads(response_data).get('origin')
+            if response.status == 200 and response_ip == url.ip:
                 ic(f"Valid: {url}")
                 return url
             return None
-    except (asyncio.TimeoutError, aiohttp.ClientError):
+    except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError):
         return None
 
 
@@ -45,11 +49,8 @@ async def get_valid_proxies(proxies: List[Dict], simultaneous_proxy_requests: in
                 return await _is_proxy_valid(proxy, session)
 
         tasks = [limited_is_proxy_valid(proxy) for proxy in proxies]
-        for task in asyncio.as_completed(tasks):
-            valid = await task
-            if valid is not None:
-                valid_proxies.append(valid)
-                ic(f"Valid: {valid}")
+        results = await asyncio.gather(*tasks)
+        valid_proxies = [result for result in results if result is not None]
 
     return valid_proxies
 
