@@ -16,7 +16,8 @@ async def get_request(url: str, retries: int = 1, timeout: int = 10,
                 session = aiohttp.ClientSession()
                 created_session = True
 
-            async with session.get(url, headers=headers, proxy=proxy, timeout=timeout, proxy_auth=None) as response:
+            async with session.get(url, headers=headers, proxy=proxy, timeout=timeout, proxy_auth=None,
+                                   allow_redirects=True) as response:
                 return await response.text()
         except aiohttp.ClientConnectionError as e:
             ic(f"Connection closed (Attempt {attempt + 1}/{retries}): {e}")
@@ -40,9 +41,20 @@ async def github_proxifly():
         return []
 
 
+async def custom_json_proxy_list(url: str) -> list:
+    response = await get_request(url, retries=3, timeout=15)
+
+    try:
+        proxies = orjson.loads(response)
+        return proxies
+    except orjson.JSONDecodeError:
+        print("Failed to parse JSON")
+        return []
+
+
 if __name__ == '__main__':
-    from icecream import ic
     from test_speed import Timer
+    from icecream import ic
 
 
     async def main():
@@ -50,6 +62,11 @@ if __name__ == '__main__':
             proxies = await github_proxifly()
             ic(len(proxies))
             ic(proxies[:2])
+
+        with Timer():
+            proxies = await custom_json_proxy_list(
+                "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json")
+            ic(proxies['proxies'][:2])
 
 
     asyncio.run(main())
