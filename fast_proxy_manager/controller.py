@@ -1,5 +1,5 @@
 from typing import Optional, List, Union, Callable
-from can_of_proxy.proxy_data_manager import ProxyDataManager
+from proxy_data_manager import ProxyDataManager
 from utils import NoProxyAvailable, ProxyDict, URL
 from pathlib import Path
 import get
@@ -7,7 +7,7 @@ from test_proxies import get_valid_proxies
 import aiohttp
 
 
-class Can:
+class Controller:
     def __init__(self, fetching_method: List[Callable[[], List[ProxyDict]]],
                  data_file: Path | None = None,
                  preferred_protocol: list[str] | str | None = None,
@@ -19,6 +19,8 @@ class Can:
                  max_proxies: Union[int, False] = False,
                  min_proxies: Union[int, False] = False):
         """
+        The main class to control pretty much everything.
+
         :param fetching_method: List of functions that return a list of ProxyDict.
         :param data_file: Path to a store file with proxy data.
         Highly recommended to use it.
