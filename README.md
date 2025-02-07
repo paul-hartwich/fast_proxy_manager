@@ -1,6 +1,6 @@
 # Can of Proxy
 
-[![CodeFactor](https://www.codefactor.io/repository/github/paul-hartwich/can_of_proxy/badge)](https://www.codefactor.io/repository/github/paul-hartwich/can_of_proxy)
+[![CodeFactor](https://www.codefactor.io/repository/github/paul-hartwich/fast_proxy_manager/badge)](https://www.codefactor.io/repository/github/paul-hartwich/fast_proxy_manager)
 
 ## Installation
 
