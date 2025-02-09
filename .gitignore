@@ -1,13 +1,11 @@
 # Own
-/test/*
-
 */proxies.json
 */test.json
 */proxies.msgpack
 */test.msgpack
 */proxy_data.msgpack
-.test.py
-proxy_data
+*/.test.py
+*/proxy_data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

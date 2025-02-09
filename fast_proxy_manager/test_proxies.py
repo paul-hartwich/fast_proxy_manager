@@ -2,12 +2,9 @@ import asyncio
 from typing import Tuple, List, Union, Dict
 import aiohttp
 from icecream import ic
-from can_of_proxy.utils import ProxyDict
+from utils import ProxyDict
 import utils
 from random import shuffle
-import logger
-
-logger.setup_logger()
 
 
 async def _is_proxy_valid(proxy: ProxyDict, session: aiohttp.ClientSession,

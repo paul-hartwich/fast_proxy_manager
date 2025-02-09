@@ -1,15 +1,14 @@
-from typing import Optional, List, Union, Callable
-from proxy_data_manager import ProxyDataManager
-from utils import NoProxyAvailable, ProxyDict, URL
+from functools import partial
+from typing import List, Union, Callable
+from data_manager import DataManager
+from utils import ProxyDict
 from pathlib import Path
-import get
 from test_proxies import get_valid_proxies
-import aiohttp
 
 
-class Controller:
+class Manager:
     def __init__(self, fetching_method: List[Callable[[], List[ProxyDict]]],
-                 data_file: Path | None = None,
+                 data_file: Path | None = "proxy_data",
                  preferred_protocol: list[str] | str | None = None,
                  preferred_country: list[str] | str | None = None,
                  preferred_anonymity: list[str] | str | None = None,
@@ -46,24 +45,30 @@ class Controller:
         self.preferred_country = preferred_country
         self.preferred_anonymity = preferred_anonymity
 
-        self.manager = ProxyDataManager(msgpack=data_file, allowed_fails_in_row=allowed_fails_in_row,
+        self.data_manager = DataManager(msgpack=data_file, allowed_fails_in_row=allowed_fails_in_row,
                                         fails_without_check=fails_without_check,
                                         percent_failed_to_remove=percent_failed_to_remove)
 
-    async def fetch_proxies(self, test_proxies: bool = True) -> None:
+    async def fetch_proxies(self, test_proxies: bool = True,
+                            fetching_method: List[Callable[[], List[ProxyDict]]] = None) -> None:
         """
         Fetch proxies from the internet.
         :param test_proxies: Test proxies before adding them.
+        :param fetching_method: List of functions that return a list of ProxyDict.
+        Change will be temp.
         """
+        if fetching_method is None:
+            fetching_method = self.fetching_method
+
         all_proxies = []
-        for method in self.fetching_method:
+        for method in fetching_method:
             proxies = await method()
             all_proxies.extend(proxies)
 
         if test_proxies:
             all_proxies = await get_valid_proxies(all_proxies, max_working_proxies=self.max_proxies)
 
-        self.manager.add_proxy(all_proxies)
+        self.data_manager.add_proxy(all_proxies)
 
 
 if __name__ == '__main__':
@@ -73,13 +78,11 @@ if __name__ == '__main__':
 
 
     async def main():
-        can = Can(data_file="proxies.msgpack", fetching_method=[Fetch.proxifly])
-        await can.fetch_proxies(test_proxies=False)
-        ic(len(can.manager))
-        can.manager.update_data()
-        ic(len(can.manager))
+        proxy_url = "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json"
 
-        print(can.manager.get_proxy(preferred_protocol="http"))
+        manager = Manager(data_file=None, fetching_method=[partial(Fetch.custom, proxy_url)])
+        await manager.fetch_proxies(test_proxies=False)
+        ic(len(manager.data_manager))
 
 
     asyncio.run(main())

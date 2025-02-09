@@ -1,5 +1,6 @@
 import re
-from typing import Union, TypedDict, List
+from collections import defaultdict
+from typing import Union, TypedDict, List, Dict, Set
 
 
 def _get_port(port: str) -> Union[int, None]:
@@ -74,6 +75,36 @@ class ProxyDict(TypedDict):
     url: URL
     country: str | None
     anonymity: str | None
+
+
+class ProxyIndex:
+    """An indexing system for efficient proxy lookup and filtering operations."""
+
+    def __init__(self):
+        self.protocol_index: Dict[str, Set[int]] = defaultdict(set)
+        self.country_index: Dict[str, Set[int]] = defaultdict(set)
+        self.anonymity_index: Dict[str, Set[int]] = defaultdict(set)
+
+    def add_proxy(self, index: int, proxy: dict) -> None:
+        self.protocol_index[proxy["protocol"]].add(index)
+        self.country_index[proxy["country"]].add(index)
+        self.anonymity_index[proxy["anonymity"]].add(index)
+
+    def remove_proxy(self, index: int, proxy: dict) -> None:
+        self.protocol_index[proxy["protocol"]].discard(index)
+        self.country_index[proxy["country"]].discard(index)
+        self.anonymity_index[proxy["anonymity"]].discard(index)
+
+    def clear(self) -> None:
+        self.protocol_index.clear()
+        self.country_index.clear()
+        self.anonymity_index.clear()
+
+    def rebuild_index(self, proxies: List[dict]) -> None:
+        """Rebuild the entire index from a list of proxies."""
+        self.clear()
+        for i, proxy in enumerate(proxies):
+            self.add_proxy(i, proxy)
 
 
 def _convert_to_proxy_dict(proxy_store_dict: dict) -> ProxyDict:

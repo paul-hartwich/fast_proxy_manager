@@ -1,8 +1,13 @@
 from typing import List
 
-from fast_proxy_manager.controller import Controller
+from fast_proxy_manager.manager import Manager
 from fast_proxy_manager.utils import NoProxyAvailable, ProxyDict, URL
 from fast_proxy_manager.get import fetch_json_proxy_list, fetch_github_proxifly
+
+# disables some annoying aiohttp debug messages
+from fast_proxy_manager.logging_config import setup_logger
+
+setup_logger()
 
 
 class Fetch:
@@ -17,4 +22,4 @@ class Fetch:
         return await fetch_json_proxy_list(url)
 
 
-__all__ = ['Controller', 'NoProxyAvailable', 'ProxyDict', 'URL', 'Fetch']
+__all__ = ['Manager', 'NoProxyAvailable', 'ProxyDict', 'URL', 'Fetch']

@@ -2,9 +2,8 @@ from random import choice
 from pathlib import Path
 from file_ops import read_msgpack, write_msgpack
 from json import JSONDecodeError
-from typing import Optional, List, Union, Dict
-from utils import ProxyDict, NoProxyAvailable, URL
-from icecream import ic
+from typing import Optional, List, Union
+from utils import ProxyDict, NoProxyAvailable, URL, ProxyIndex
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
@@ -18,7 +17,7 @@ def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
     return protocols
 
 
-class ProxyDataManager:
+class DataManager:
     def __init__(self, msgpack: Optional[Path] = Path("proxy_data"),
                  allowed_fails_in_row: int = 2,
                  fails_without_check: int = 2,
@@ -34,19 +33,19 @@ class ProxyDataManager:
         :param fails_without_check: How many times a proxy can fail before being checked for percentage of fails to remove.
         :param percent_failed_to_remove: Percentage of fails to remove a proxy.
         Example: 0.5 means 50% of tries are fails, if higher than that it gets removed.
-        :param min_proxies: When len(proxies) < min_proxies, fetch more proxies
+        :param min_proxies: When len(proxies) < min_proxies -> fetch more proxies
         """
 
         self.allowed_fails_in_row = allowed_fails_in_row
         self.fails_without_check = fails_without_check
         self.percent_failed_to_remove = percent_failed_to_remove
         self.min_proxies = min_proxies
-
         self.debug = debug
-
         self.msgpack = msgpack if msgpack else None
         self.proxies = self._load_proxies()
         self.last_proxy_index = None
+        self.index = ProxyIndex()
+        self.index.rebuild_index(self.proxies)  # Initialize index with loaded proxies
 
     def _load_proxies(self) -> list[dict]:
         if self.msgpack and self.msgpack.exists() and self.msgpack.stat().st_size > 0:
@@ -62,10 +61,12 @@ class ProxyDataManager:
 
     def _rm_duplicate_proxies(self):
         seen_urls = set()
-        self.proxies = [
+        new_proxies = [
             proxy for proxy in reversed(self.proxies)
             if not (proxy['url'] in seen_urls or seen_urls.add(proxy['url']))
         ]
+        self.proxies = new_proxies
+        self.index.rebuild_index(self.proxies)  # Rebuild index after removing duplicates
 
     def update_data(self, remove_duplicates: bool = True):
         if remove_duplicates:
@@ -106,16 +107,31 @@ class ProxyDataManager:
         self._write_data()
 
     def add_proxy(self, proxies: List[ProxyDict]):
+        start_index = len(self.proxies)
         new_proxies = [
             {**proxy, "times_failed": 0, "times_succeed": 0, "times_failed_in_row": 0}
             for proxy in proxies
         ]
         self.proxies.extend(new_proxies)
+
+        # Update index for new proxies
+        for i, proxy in enumerate(new_proxies, start=start_index):
+            self.index.add_proxy(i, proxy)
+
         self.update_data(remove_duplicates=True)
 
     def rm_proxy(self, index: int):
         if 0 <= index < len(self.proxies):
+            # Remove from index first
+            proxy = self.proxies[index]
+            self.index.remove_proxy(index, proxy)
+
+            # Remove from a list
             self.proxies.pop(index)
+
+            # Update indices for remaining proxies
+            self.index.rebuild_index(self.proxies)
+
             if self.last_proxy_index is not None and index < self.last_proxy_index:
                 self.last_proxy_index -= 1
             self._write_data()
@@ -124,6 +140,7 @@ class ProxyDataManager:
 
     def rm_all_proxies(self):
         self.proxies = []
+        self.index.clear()
         self._write_data()
 
     def get_proxy(self, return_type: str = "url", protocol: Union[list[str], str, None] = None,
@@ -136,50 +153,47 @@ class ProxyDataManager:
         if self.min_proxies and len(self.proxies) < self.min_proxies:
             raise NoProxyAvailable("Not enough proxies available. Fetch more proxies.")
 
-        protocol = [protocol] if isinstance(protocol, str) else protocol
-        country = [country] if isinstance(country, str) else country
-        anonymity = [anonymity] if isinstance(anonymity, str) else anonymity
-        exclude_protocol = [exclude_protocol] if isinstance(exclude_protocol, str) else exclude_protocol
-        exclude_country = [exclude_country] if isinstance(exclude_country, str) else exclude_country
-        exclude_anonymity = [exclude_anonymity] if isinstance(exclude_anonymity, str) else exclude_anonymity
+        # Start with all proxy indices
+        valid_indices = set(range(len(self.proxies)))
 
-        filtered_proxies = [
-            proxy for proxy in self.proxies
-            if (not protocol or proxy["protocol"] in protocol) and
-               (not country or proxy["country"] in country) and
-               (not anonymity or proxy["anonymity"] in anonymity) and
-               (not exclude_protocol or proxy["protocol"] not in exclude_protocol) and
-               (not exclude_country or proxy["country"] not in exclude_country) and
-               (not exclude_anonymity or proxy["anonymity"] not in exclude_anonymity)
-        ]
+        # Include filters
+        if protocol:
+            protocol = [protocol] if isinstance(protocol, str) else protocol
+            protocol_indices = set().union(*(self.index.protocol_index[p] for p in protocol))
+            valid_indices &= protocol_indices
 
-        if not filtered_proxies:
+        if country:
+            country = [country] if isinstance(country, str) else country
+            country_indices = set().union(*(self.index.country_index[c] for c in country))
+            valid_indices &= country_indices
+
+        if anonymity:
+            anonymity = [anonymity] if isinstance(anonymity, str) else anonymity
+            anonymity_indices = set().union(*(self.index.anonymity_index[a] for a in anonymity))
+            valid_indices &= anonymity_indices
+
+        # Exclude filters
+        if exclude_protocol:
+            exclude_protocol = [exclude_protocol] if isinstance(exclude_protocol, str) else exclude_protocol
+            exclude_indices = set().union(*(self.index.protocol_index[p] for p in exclude_protocol))
+            valid_indices -= exclude_indices
+
+        if exclude_country:
+            exclude_country = [exclude_country] if isinstance(exclude_country, str) else exclude_country
+            exclude_indices = set().union(*(self.index.country_index[c] for c in exclude_country))
+            valid_indices -= exclude_indices
+
+        if exclude_anonymity:
+            exclude_anonymity = [exclude_anonymity] if isinstance(exclude_anonymity, str) else exclude_anonymity
+            exclude_indices = set().union(*(self.index.anonymity_index[a] for a in exclude_anonymity))
+            valid_indices -= exclude_indices
+
+        if not valid_indices:
             raise NoProxyAvailable("No proxy found with the given parameters.")
 
-        selected_proxy = choice(filtered_proxies)
-        self.last_proxy_index = self.proxies.index(selected_proxy)
-        return selected_proxy[return_type]
+        selected_index = choice(list(valid_indices))
+        self.last_proxy_index = selected_index
+        return self.proxies[selected_index][return_type]
 
     def __len__(self):
         return len(self.proxies)
-
-
-if __name__ == '__main__':
-    manager = ProxyDataManager(debug=True)
-    manager.rm_all_proxies()
-
-    proxy = [
-        {"url": "http://172.67.133.23:80", "protocol": "http", "country": "US", "anonymity": "elite"},
-        {"url": "http://122.67.133.23:80", "protocol": "http", "country": "US", "anonymity": "elite"}
-    ]
-
-    manager.add_proxy(proxy)
-    ic(len(manager))
-
-    manager.get_proxy(protocol="http", country="US", anonymity="elite")
-    [manager.feedback_proxy(success=False) for _ in range(2)]
-
-    ic(len(manager))
-    manager.feedback_proxy(success=False)
-    ic(len(manager))
-    ic(manager.get_proxy(protocol="http", country="US", anonymity="elite"))
