@@ -1,8 +1,8 @@
 from typing import List
 
-from can_of_proxy.can import Can
-from can_of_proxy.utils import NoProxyAvailable, ProxyDict, URL
-from can_of_proxy.get import fetch_json_proxy_list, fetch_github_proxifly
+from fast_proxy_manager.controller import Controller
+from fast_proxy_manager.utils import NoProxyAvailable, ProxyDict, URL
+from fast_proxy_manager.get import fetch_json_proxy_list, fetch_github_proxifly
 
 
 class Fetch:
@@ -17,4 +17,4 @@ class Fetch:
         return await fetch_json_proxy_list(url)
 
 
-__all__ = ['Can', 'NoProxyAvailable', 'ProxyDict', 'URL', 'Fetch']
+__all__ = ['Controller', 'NoProxyAvailable', 'ProxyDict', 'URL', 'Fetch']

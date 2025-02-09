@@ -1,11 +1,8 @@
-from multiprocessing.util import debug
-
-import pandas as pd
 from random import choice
 from pathlib import Path
 from file_ops import read_msgpack, write_msgpack
 from json import JSONDecodeError
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict
 from utils import ProxyDict, NoProxyAvailable, URL
 from icecream import ic
 
@@ -15,9 +12,9 @@ def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
         return None
     if isinstance(protocols, str):
         protocols = [protocols]
-    for protocol in protocols:
-        if protocol not in ("http", "https", "socks4", "socks5"):
-            raise ValueError(f"You can't use this protocol: {protocol}")
+    if any(protocol not in ("http", "https", "socks4", "socks5") for protocol in protocols):
+        invalid_protocol = next(p for p in protocols if p not in ("http", "https", "socks4", "socks5"))
+        raise ValueError(f"You can't use this protocol: {invalid_protocol}")
     return protocols
 
 
@@ -51,24 +48,24 @@ class ProxyDataManager:
         self.proxies = self._load_proxies()
         self.last_proxy_index = None
 
-    def _load_proxies(self):
-        columns = ["url", "protocol", "country", "anonymity", "times_failed", "times_succeed", "times_failed_in_row"]
-        if self.msgpack:
-            if self.msgpack.exists() and self.msgpack.stat().st_size > 0:
-                try:
-                    proxies = read_msgpack(self.msgpack)
-                    return pd.DataFrame(proxies, columns=columns)
-                except JSONDecodeError:
-                    return pd.DataFrame(columns=columns)
-            self.msgpack.touch(exist_ok=True)
-        return pd.DataFrame(columns=columns)
+    def _load_proxies(self) -> list[dict]:
+        if self.msgpack and self.msgpack.exists() and self.msgpack.stat().st_size > 0:
+            try:
+                return read_msgpack(self.msgpack)
+            except JSONDecodeError:
+                return []
+        self.msgpack and self.msgpack.touch(exist_ok=True)
+        return []
 
     def _write_data(self):
-        if self.msgpack:
-            write_msgpack(self.msgpack, self.proxies.to_dict(orient="records"))
+        self.msgpack and write_msgpack(self.msgpack, self.proxies)
 
     def _rm_duplicate_proxies(self):
-        self.proxies.drop_duplicates(subset="url", keep="last", inplace=True)
+        seen_urls = set()
+        self.proxies = [
+            proxy for proxy in reversed(self.proxies)
+            if not (proxy['url'] in seen_urls or seen_urls.add(proxy['url']))
+        ]
 
     def update_data(self, remove_duplicates: bool = True):
         if remove_duplicates:
@@ -83,38 +80,42 @@ class ProxyDataManager:
         if self.last_proxy_index is None or self.last_proxy_index >= len(self.proxies):
             return
 
-        proxy = self.proxies.iloc[self.last_proxy_index]
+        proxy = self.proxies[self.last_proxy_index]
         if success:
-            self.proxies.at[self.last_proxy_index, "times_succeed"] += 1
-            self.proxies.at[self.last_proxy_index, "times_failed_in_row"] = 0
+            proxy["times_succeed"] = proxy.get("times_succeed", 0) + 1
+            proxy["times_failed_in_row"] = 0
         else:
-            self.proxies.at[self.last_proxy_index, "times_failed"] += 1
-            self.proxies.at[self.last_proxy_index, "times_failed_in_row"] += 1
-            if self.proxies.at[self.last_proxy_index, "times_failed_in_row"] > self.allowed_fails_in_row:
+            proxy["times_failed"] = proxy.get("times_failed", 0) + 1
+            proxy["times_failed_in_row"] = proxy.get("times_failed_in_row", 0) + 1
+
+            total_attempts = proxy.get("times_failed", 0) + proxy.get("times_succeed", 0)
+            failed_ratio = proxy.get("times_failed", 0) / total_attempts if total_attempts > 0 else 0
+
+            should_remove = any([
+                proxy.get("times_failed_in_row", 0) > self.allowed_fails_in_row,
+                proxy.get("times_failed", 0) > self.fails_without_check and failed_ratio > self.percent_failed_to_remove
+            ])
+
+            if should_remove:
                 if self.debug:
-                    print(
-                        f"Removing proxy {proxy['url']} due to too many failures in a row. f:{self.proxies.at[self.last_proxy_index, "times_failed"]} s:{self.proxies.at[self.last_proxy_index, "times_succeed"]} f_in_row:{self.proxies.at[self.last_proxy_index, "times_failed_in_row"]}")
-                self.rm_proxy(self.last_proxy_index)
-            elif (self.proxies.at[self.last_proxy_index, "times_failed"] > self.fails_without_check and
-                  self.proxies.at[self.last_proxy_index, "times_failed"] /
-                  (self.proxies.at[self.last_proxy_index, "times_failed"] + self.proxies.at[
-                      self.last_proxy_index, "times_succeed"]) > self.percent_failed_to_remove):
-                if self.debug:
-                    print(
-                        f"Removing proxy {proxy['url']} due to bad success-failure ratio. f:{self.proxies.at[self.last_proxy_index, "times_failed"]} s:{self.proxies.at[self.last_proxy_index, "times_succeed"]} f_in_row:{self.proxies.at[self.last_proxy_index, "times_failed_in_row"]}")
+                    print(f"Removing proxy {proxy['url']} due to "
+                          f"{'too many failures in a row' if proxy.get('times_failed_in_row', 0) > self.allowed_fails_in_row else 'bad success-failure ratio'}. "
+                          f"f:{proxy.get('times_failed', 0)} s:{proxy.get('times_succeed', 0)} "
+                          f"f_in_row:{proxy.get('times_failed_in_row', 0)}")
                 self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
     def add_proxy(self, proxies: List[ProxyDict]):
-        new_proxies = pd.DataFrame(proxies)
-        new_proxies = new_proxies.reindex(columns=self.proxies.columns, fill_value=0)
-        self.proxies = pd.concat([self.proxies, new_proxies], ignore_index=True)
+        new_proxies = [
+            {**proxy, "times_failed": 0, "times_succeed": 0, "times_failed_in_row": 0}
+            for proxy in proxies
+        ]
+        self.proxies.extend(new_proxies)
         self.update_data(remove_duplicates=True)
 
     def rm_proxy(self, index: int):
         if 0 <= index < len(self.proxies):
-            self.proxies.drop(index, inplace=True)
-            self.proxies.reset_index(drop=True, inplace=True)
+            self.proxies.pop(index)
             if self.last_proxy_index is not None and index < self.last_proxy_index:
                 self.last_proxy_index -= 1
             self._write_data()
@@ -122,8 +123,7 @@ class ProxyDataManager:
             raise IndexError("Proxy does not exist")
 
     def rm_all_proxies(self):
-        self.proxies = pd.DataFrame(
-            columns=["url", "protocol", "country", "anonymity", "times_failed", "times_succeed", "times_failed_in_row"])
+        self.proxies = []
         self._write_data()
 
     def get_proxy(self, return_type: str = "url", protocol: Union[list[str], str, None] = None,
@@ -132,47 +132,32 @@ class ProxyDataManager:
                   exclude_protocol: Union[list[str], str, None] = None,
                   exclude_country: Union[list[str], str, None] = None,
                   exclude_anonymity: Union[list[str], str, None] = None) -> URL | None:
+
         if self.min_proxies and len(self.proxies) < self.min_proxies:
             raise NoProxyAvailable("Not enough proxies available. Fetch more proxies.")
 
-        query = []
-        if protocol:
-            protocol = _validate_protocol(protocol)
-            if isinstance(protocol, str):
-                protocol = [protocol]
-            query.append(self.proxies["protocol"].isin(protocol))
-        if country:
-            if isinstance(country, str):
-                country = [country]
-            query.append(self.proxies["country"].isin(country))
-        if anonymity:
-            if isinstance(anonymity, str):
-                anonymity = [anonymity]
-            query.append(self.proxies["anonymity"].isin(anonymity))
-        if exclude_protocol:
-            exclude_protocol = _validate_protocol(exclude_protocol)
-            if isinstance(exclude_protocol, str):
-                exclude_protocol = [exclude_protocol]
-            query.append(~self.proxies["protocol"].isin(exclude_protocol))
-        if exclude_country:
-            if isinstance(exclude_country, str):
-                exclude_country = [exclude_country]
-            query.append(~self.proxies["country"].isin(exclude_country))
-        if exclude_anonymity:
-            if isinstance(exclude_anonymity, str):
-                exclude_anonymity = [exclude_anonymity]
-            query.append(~self.proxies["anonymity"].isin(exclude_anonymity))
+        protocol = [protocol] if isinstance(protocol, str) else protocol
+        country = [country] if isinstance(country, str) else country
+        anonymity = [anonymity] if isinstance(anonymity, str) else anonymity
+        exclude_protocol = [exclude_protocol] if isinstance(exclude_protocol, str) else exclude_protocol
+        exclude_country = [exclude_country] if isinstance(exclude_country, str) else exclude_country
+        exclude_anonymity = [exclude_anonymity] if isinstance(exclude_anonymity, str) else exclude_anonymity
 
-        if query:
-            filtered_proxies = self.proxies.loc[pd.concat(query, axis=1).all(axis=1)]
-        else:
-            filtered_proxies = self.proxies
+        filtered_proxies = [
+            proxy for proxy in self.proxies
+            if (not protocol or proxy["protocol"] in protocol) and
+               (not country or proxy["country"] in country) and
+               (not anonymity or proxy["anonymity"] in anonymity) and
+               (not exclude_protocol or proxy["protocol"] not in exclude_protocol) and
+               (not exclude_country or proxy["country"] not in exclude_country) and
+               (not exclude_anonymity or proxy["anonymity"] not in exclude_anonymity)
+        ]
 
-        if filtered_proxies.empty:
+        if not filtered_proxies:
             raise NoProxyAvailable("No proxy found with the given parameters.")
 
-        selected_proxy = filtered_proxies.sample(1).iloc[0]
-        self.last_proxy_index = self.proxies.index[self.proxies["url"] == selected_proxy["url"]].tolist()[0]
+        selected_proxy = choice(filtered_proxies)
+        self.last_proxy_index = self.proxies.index(selected_proxy)
         return selected_proxy[return_type]
 
     def __len__(self):
@@ -182,27 +167,17 @@ class ProxyDataManager:
 if __name__ == '__main__':
     manager = ProxyDataManager(debug=True)
     manager.rm_all_proxies()
-    # Add a proxy
-    proxy = [{
-        "url": "http://172.67.133.23:80",
-        "protocol": "http",
-        "country": "US",
-        "anonymity": "elite"
-    },
-        {
-            "url": "http://122.67.133.23:80",
-            "protocol": "http",
-            "country": "US",
-            "anonymity": "elite"
-        }]
+
+    proxy = [
+        {"url": "http://172.67.133.23:80", "protocol": "http", "country": "US", "anonymity": "elite"},
+        {"url": "http://122.67.133.23:80", "protocol": "http", "country": "US", "anonymity": "elite"}
+    ]
+
     manager.add_proxy(proxy)
     ic(len(manager))
 
-    # Simulate a success
     manager.get_proxy(protocol="http", country="US", anonymity="elite")
-
-    manager.feedback_proxy(success=False)
-    manager.feedback_proxy(success=False)
+    [manager.feedback_proxy(success=False) for _ in range(2)]
 
     ic(len(manager))
     manager.feedback_proxy(success=False)
