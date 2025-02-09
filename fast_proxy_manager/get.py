@@ -1,10 +1,10 @@
-import logging
-from typing import Union, List
-
-import orjson
+from typing import List
 import asyncio
 
 from utils import URL, ProxyDict, convert_to_proxy_dict_format
+from logger import logger
+
+import orjson
 import aiohttp
 
 
@@ -24,7 +24,7 @@ async def get_request(url: str, retries: int = 1, timeout: int = 10,
                                    allow_redirects=True) as response:
                 return await response.text()
         except aiohttp.ClientConnectionError as e:
-            ic(f"Connection closed (Attempt {attempt + 1}/{retries}): {e}")
+            logger.error(f"Connection closed (Attempt {attempt + 1}/{retries}): {e}")
             if attempt == retries - 1:
                 raise  # Give up after max retries
             await asyncio.sleep(1)  # Wait before retrying
@@ -41,7 +41,7 @@ async def fetch_github_proxifly() -> List[ProxyDict]:
         proxies = orjson.loads(response)
         return convert_to_proxy_dict_format(proxies)
     except orjson.JSONDecodeError:
-        logging.error("Failed to parse JSON")
+        logger.error("Failed to parse JSON")
         return []
 
 
@@ -53,20 +53,5 @@ async def fetch_json_proxy_list(url: str) -> List[ProxyDict]:
         proxies = orjson.loads(response)
         return convert_to_proxy_dict_format(proxies)
     except orjson.JSONDecodeError:
-        logging.error("Failed to parse JSON")
+        logger.error("Failed to parse JSON")
         return []
-
-
-if __name__ == '__main__':
-    from icecream import ic
-    from utils import convert_to_proxy_dict_format
-
-
-    async def main():
-        proxies = await fetch_json_proxy_list(
-            "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json")
-        ic(len(proxies))
-        ic(proxies[:2])
-
-
-    asyncio.run(main())

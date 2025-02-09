@@ -1,9 +1,12 @@
 from random import choice
 from pathlib import Path
-from file_ops import read_msgpack, write_msgpack
-from json import JSONDecodeError
 from typing import Optional, List, Union
+
+from file_ops import read_msgpack, write_msgpack
 from utils import ProxyDict, NoProxyAvailable, URL, ProxyIndex
+from logger import logger
+
+from orjson import JSONDecodeError
 
 
 def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
@@ -22,8 +25,7 @@ class DataManager:
                  allowed_fails_in_row: int = 2,
                  fails_without_check: int = 2,
                  percent_failed_to_remove: float = 0.5,
-                 min_proxies: int = 0,
-                 debug: bool = False):
+                 min_proxies: int = 0):
         """
         Get add and remove proxies from a list with some extra features.
 
@@ -40,9 +42,9 @@ class DataManager:
         self.fails_without_check = fails_without_check
         self.percent_failed_to_remove = percent_failed_to_remove
         self.min_proxies = min_proxies
-        self.debug = debug
         self.msgpack = msgpack if msgpack else None
         self.proxies = self._load_proxies()
+        logger.debug(f"Loaded {len(self.proxies)} proxies on init")
         self.last_proxy_index = None
         self.index = ProxyIndex()
         self.index.rebuild_index(self.proxies)  # Initialize index with loaded proxies
@@ -98,20 +100,31 @@ class DataManager:
             ])
 
             if should_remove:
-                if self.debug:
-                    print(f"Removing proxy {proxy['url']} due to "
-                          f"{'too many failures in a row' if proxy.get('times_failed_in_row', 0) > self.allowed_fails_in_row else 'bad success-failure ratio'}. "
-                          f"f:{proxy.get('times_failed', 0)} s:{proxy.get('times_succeed', 0)} "
-                          f"f_in_row:{proxy.get('times_failed_in_row', 0)}")
-                self.rm_proxy(self.last_proxy_index)
+                logger.debug(f"Removing proxy {proxy['url']} due to "
+                             f"{'too many failures in a row' if proxy.get('times_failed_in_row', 0) > self.allowed_fails_in_row else 'bad success-failure ratio'}. "
+                             f"f:{proxy.get('times_failed', 0)} s:{proxy.get('times_succeed', 0)} "
+                             f"f_in_row:{proxy.get('times_failed_in_row', 0)}")
+            self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
     def add_proxy(self, proxies: List[ProxyDict]):
         start_index = len(self.proxies)
-        new_proxies = [
-            {**proxy, "times_failed": 0, "times_succeed": 0, "times_failed_in_row": 0}
-            for proxy in proxies
-        ]
+        new_proxies = []
+        for proxy in proxies:
+            url = URL(proxy["url"])
+            proxy = {
+                "url": repr(url),
+                "protocol": url.protocol,
+                "country": proxy.get("country", "unknown"),
+                "anonymity": proxy.get("anonymity", "unknown"),
+                "times_failed": 0,
+                "times_succeed": 0,
+                "times_failed_in_row": 0
+            }
+
+            new_proxies.append(proxy)
+
+        logger.debug(f"Adding {len(new_proxies)} proxies")
         self.proxies.extend(new_proxies)
 
         # Update index for new proxies
@@ -153,7 +166,6 @@ class DataManager:
         if self.min_proxies and len(self.proxies) < self.min_proxies:
             raise NoProxyAvailable("Not enough proxies available. Fetch more proxies.")
 
-        # Start with all proxy indices
         valid_indices = set(range(len(self.proxies)))
 
         # Include filters
@@ -191,9 +203,19 @@ class DataManager:
         if not valid_indices:
             raise NoProxyAvailable("No proxy found with the given parameters.")
 
+        # Avoid consecutive same proxy unless it's the only option
+        if (
+                self.last_proxy_index is not None
+                and self.last_proxy_index in valid_indices
+                and len(valid_indices) > 1
+        ):
+            valid_indices.remove(self.last_proxy_index)
+
         selected_index = choice(list(valid_indices))
         self.last_proxy_index = selected_index
-        return self.proxies[selected_index][return_type]
+        chosen_proxy = self.proxies[selected_index][return_type]
+        logger.debug(f"Chosen proxy: {chosen_proxy}")
+        return chosen_proxy
 
     def __len__(self):
         return len(self.proxies)

@@ -1,9 +1,4 @@
-# Own
-*/proxies.json
-*/test.json
-*/proxies.msgpack
-*/test.msgpack
-*/proxy_data.msgpack
+# Custom
 */.test.py
 */proxy_data
 

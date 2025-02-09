@@ -4,11 +4,6 @@ from fast_proxy_manager.manager import Manager
 from fast_proxy_manager.utils import NoProxyAvailable, ProxyDict, URL
 from fast_proxy_manager.get import fetch_json_proxy_list, fetch_github_proxifly
 
-# disables some annoying aiohttp debug messages
-from fast_proxy_manager.logging_config import setup_logger
-
-setup_logger()
-
 
 class Fetch:
     @staticmethod

@@ -1,10 +1,10 @@
 import asyncio
 from typing import Tuple, List, Union, Dict
 import aiohttp
-from icecream import ic
 from utils import ProxyDict
 import utils
 from random import shuffle
+from logger import logger
 
 
 async def _is_proxy_valid(proxy: ProxyDict, session: aiohttp.ClientSession,
@@ -19,7 +19,7 @@ async def _is_proxy_valid(proxy: ProxyDict, session: aiohttp.ClientSession,
     try:
         async with session.get("https://httpbin.org/ip", proxy=repr(url), allow_redirects=True, timeout=20) as response:
             if response.status == 200:
-                ic(f"Valid: {url}")
+                logger.debug(f"Valid: {url}")
                 return proxy
             return None
     except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError):
@@ -53,6 +53,9 @@ async def get_valid_proxies(proxies: List[ProxyDict], max_working_proxies: Union
 
 if __name__ == '__main__':
     from get import fetch_github_proxifly, fetch_json_proxy_list
+    from icecream import ic
+    import logging
+    logger.setLevel(logging.DEBUG)
 
 
     async def main():

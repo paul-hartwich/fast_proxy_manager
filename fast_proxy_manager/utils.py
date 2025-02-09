@@ -36,23 +36,28 @@ class URL:
             self.port = url.port
         else:
             self.url = url
-            self.protocol, self.ip, self.port = self._parse_url(url)
+            self.protocol, self.ip, self.port = self._parse_url()
 
-    def _parse_url(self, url: str):
+    def _parse_url(self):
         protocol, ip, port = None, None, None
-        if '://' in url:
-            protocol, rest = url.split('://', 1)
+        if '://' in self.url:
+            protocol, rest = self.url.split('://', 1)
             protocol = _get_protocol(protocol)
-            if '/' in rest:
-                ip_port, _ = rest.split('/', 1)
-            else:
-                ip_port = rest
-            if ':' in ip_port:
-                ip, port = ip_port.split(':', 1)
-                port = _get_port(port)
-            else:
-                ip = ip_port
-            ip = _get_ip(ip)
+        else:
+            rest = self.url
+
+        if '/' in rest:
+            ip_port, _ = rest.split('/', 1)
+        else:
+            ip_port = rest
+
+        if ':' in ip_port:
+            ip, port = ip_port.split(':', 1)
+            port = _get_port(port)
+        else:
+            ip = ip_port
+
+        ip = _get_ip(ip)
         return protocol, ip, port
 
     def __str__(self):
@@ -105,6 +110,9 @@ class ProxyIndex:
         self.clear()
         for i, proxy in enumerate(proxies):
             self.add_proxy(i, proxy)
+
+    def __str__(self):
+        return f"protocol_index: {self.protocol_index}, country_index: {self.country_index}, anonymity_index: {self.anonymity_index}"
 
 
 def _convert_to_proxy_dict(proxy_store_dict: dict) -> ProxyDict:
@@ -176,3 +184,7 @@ class NoValidProxyAvailable(Exception):
 
     def __str__(self):
         return f"NoValidProxyAvailable: {self.message}"
+
+
+__all__ = ['URL', 'ProxyDict', 'ProxyIndex', 'convert_to_proxy_dict_format', 'NoProxyAvailable',
+           'NoValidProxyAvailable']
