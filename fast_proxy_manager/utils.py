@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from typing import Union, TypedDict, List, Dict, Set
+from typing import Union, TypedDict, List, Dict, Set, Optional
 
 
 def _get_port(port: str) -> Union[int, None]:
@@ -80,6 +80,15 @@ class ProxyDict(TypedDict):
     url: URL
     country: str | None
     anonymity: str | None
+
+
+class ProxyPreferences(TypedDict, total=False):
+    protocol: Optional[Union[str, List[str]]]
+    country: Optional[Union[str, List[str]]]
+    anonymity: Optional[Union[str, List[str]]]
+    exclude_protocol: Optional[Union[str, List[str]]]
+    exclude_country: Optional[Union[str, List[str]]]
+    exclude_anonymity: Optional[Union[str, List[str]]]
 
 
 class ProxyIndex:
@@ -186,5 +195,5 @@ class NoValidProxyAvailable(Exception):
         return f"NoValidProxyAvailable: {self.message}"
 
 
-__all__ = ['URL', 'ProxyDict', 'ProxyIndex', 'convert_to_proxy_dict_format', 'NoProxyAvailable',
+__all__ = ['URL', 'ProxyDict', 'ProxyPreferences', 'ProxyIndex', 'convert_to_proxy_dict_format', 'NoProxyAvailable',
            'NoValidProxyAvailable']

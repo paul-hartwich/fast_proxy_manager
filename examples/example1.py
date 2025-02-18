@@ -1,5 +1,5 @@
 import asyncio
-from fast_proxy_manager import partial, Manager, Fetch, logger
+from fast_proxy_manager import partial, Manager, Fetch
 import logging
 
 logging.getLogger("fast_proxy_manager").setLevel(logging.DEBUG)
@@ -12,7 +12,7 @@ async def main():
 
     await manager.fetch_proxies(test_proxies=False)
 
-    manager.data_manager.get_proxy(protocol="http")
+    manager.get_proxy(protocol="http")
 
 
 asyncio.run(main())

@@ -161,7 +161,7 @@ class DataManager:
                   anonymity: Union[list[str], str, None] = None,
                   exclude_protocol: Union[list[str], str, None] = None,
                   exclude_country: Union[list[str], str, None] = None,
-                  exclude_anonymity: Union[list[str], str, None] = None) -> URL | None:
+                  exclude_anonymity: Union[list[str], str, None] = None) -> URL:
 
         if self.min_proxies and len(self.proxies) < self.min_proxies:
             raise NoProxyAvailable("Not enough proxies available. Fetch more proxies.")

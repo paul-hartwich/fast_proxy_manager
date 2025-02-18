@@ -7,7 +7,7 @@ from typing import Tuple, List
 from functools import partial
 
 from .manager import Manager
-from .utils import NoProxyAvailable, ProxyDict, URL
+from .utils import NoProxyAvailable, ProxyPreferences, ProxyDict, URL
 from .get import fetch_json_proxy_list, fetch_github_proxifly
 
 
@@ -30,6 +30,7 @@ from . import version
 __all__: Tuple[str, ...] = (
     "Manager",
     "NoProxyAvailable",
+    "ProxyPreferences",
     "ProxyDict",
     "URL",
     "Fetch",

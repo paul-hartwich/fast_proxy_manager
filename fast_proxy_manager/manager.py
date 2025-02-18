@@ -1,9 +1,8 @@
-from functools import partial
 from typing import List, Union, Callable
 from pathlib import Path
 
 from .data_manager import DataManager
-from .utils import ProxyDict
+from .utils import ProxyDict, ProxyPreferences, NoProxyAvailable
 from .test_proxies import get_valid_proxies
 from .logger import logger
 
@@ -11,24 +10,25 @@ from .logger import logger
 class Manager:
     def __init__(self, fetching_method: List[Callable[[], List[ProxyDict]]],
                  data_file: Path | None = "proxy_data",
-                 preferred_protocol: list[str] | str | None = None,
-                 preferred_country: list[str] | str | None = None,
-                 preferred_anonymity: list[str] | str | None = None,
+                 proxy_preferences: ProxyPreferences = None,
+                 force_preferences: bool = False,
+                 auto_fetch_proxies: bool = True,
                  allowed_fails_in_row: int = 3,
                  fails_without_check: int = 2,
                  percent_failed_to_remove: float = 0.5,
                  max_proxies: Union[int, False] = 10,
-                 min_proxies: Union[int, False] = 1,
-                 fetch_proxies_on_init: bool = True):
+                 min_proxies: Union[int, False] = 1):
         """
         The main class to control pretty much everything.
 
         :param fetching_method: List of functions that return a list of ProxyDict.
         :param data_file: Path to a store file with proxy data.
-        Highly recommended to use it.
-        :param preferred_protocol: It can later be changed when getting a proxy.
-        :param preferred_country: It can later be changed when getting a proxy.
-        :param preferred_anonymity: It can later be changed when getting a proxy.
+        :param proxy_preferences: ProxyPreferences object to filter proxies.
+        :param force_preferences: If True, will only return proxies that match the preferences.
+        When no proxies are available, it will fetch more (potential loop).
+        If False and no proxies are available,
+        it will fetch more, and when no proxies are available again, it ignores the preferences.
+        :param auto_fetch_proxies: If True, it will fetch when too few proxies are available.Has to be awaited (also on int).
         :param allowed_fails_in_row: How many times a proxy can fail in a row before being removed.
         :param fails_without_check: How many times a proxy can fail before being checked for percentage of fails to remove.
         :param percent_failed_to_remove: Percentage of fails to remove a proxy.
@@ -36,10 +36,8 @@ class Manager:
         :param max_proxies: Maximum number of proxies to be fetched.
         Saves time when testing proxies.
         :param min_proxies: When len(proxies) < min_proxies, fetch more proxies.
-        :param fetch_proxies_on_init: Fetch proxies on initialization.
-        HAS TO BE AWAITED!
         """
-        self.fetch_proxies_on_init = fetch_proxies_on_init
+        self.auto_fetch_proxies = auto_fetch_proxies
 
         self.fetching_method = fetching_method
         self.max_proxies = max_proxies
@@ -50,9 +48,13 @@ class Manager:
         else:
             self.data_file = None
 
-        self.preferred_protocol = preferred_protocol
-        self.preferred_country = preferred_country
-        self.preferred_anonymity = preferred_anonymity
+        if proxy_preferences is None:
+            self.proxy_preferences = ProxyPreferences()
+        else:
+            self.proxy_preferences = proxy_preferences
+        self.force_preferences = force_preferences
+
+        self.failed_get_proxies_in_row: int = 0
 
         self.data_manager = DataManager(msgpack=self.data_file, allowed_fails_in_row=allowed_fails_in_row,
                                         fails_without_check=fails_without_check,
@@ -92,17 +94,47 @@ class Manager:
         if self.data_file is not None:
             self.data_manager.update_data()
 
+    async def get_proxy(self, ignore_preferences=False, **kwargs):
+        if ignore_preferences:
+            preferences = {}
+        else:
+            preferences = {
+                key: kwargs.get(key, self.proxy_preferences.get(key))
+                for key in [
+                    'protocol', 'country', 'anonymity', 'exclude_protocol', 'exclude_country', 'exclude_anonymity'
+                ]
+            }  # Get the preferences from the kwargs or the default preferences individually
 
-if __name__ == '__main__':
-    import asyncio
-    from __init__ import Fetch
+        try:
+            proxy = self.data_manager.get_proxy(**preferences)
+            self.failed_get_proxies_in_row = 0
+            return proxy
+        except NoProxyAvailable:
+            self.failed_get_proxies_in_row += 1
 
+            if self.auto_fetch_proxies and self.force_preferences:  # fetch more proxies
+                if self.failed_get_proxies_in_row == 1:
+                    logger.debug("No proxy available, fetching more proxies")
+                elif self.failed_get_proxies_in_row > 1:
+                    logger.critical(
+                        f"Failed to get proxy with preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
 
-    async def main():
-        proxy_url = "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json"
+                await self.fetch_proxies()
+                return await self.get_proxy(ignore_preferences=False, **kwargs)
 
-        manager = await Manager(fetching_method=[partial(Fetch.custom, proxy_url)], max_proxies=10, min_proxies=11)
-        print(len(manager.data_manager))
+            elif self.auto_fetch_proxies and not self.force_preferences:  # try removing preferences
+                if self.failed_get_proxies_in_row == 1:  # just try again without preferences
+                    logger.debug("Failed to get proxy, trying without preferences")
+                    return await self.get_proxy(ignore_preferences=True)
+                elif self.failed_get_proxies_in_row == 2:  # didn't work, fetch more proxies
+                    logger.debug("Failed to get proxy without preferences, fetching more proxies now")
+                    await self.fetch_proxies()
+                    return await self.get_proxy(ignore_preferences=True)
+                elif self.failed_get_proxies_in_row > 2:  # very bad, try fetch and then without preferences
+                    logger.critical(
+                        f"Failed to get proxy without preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
+                    await self.fetch_proxies()
+                    return await self.get_proxy(ignore_preferences=True)
 
-
-    asyncio.run(main())
+            else:
+                raise NoProxyAvailable("No proxy available")
