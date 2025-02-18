@@ -1,8 +1,14 @@
-from typing import List
+# -*- coding: utf-8 -*-
+"""
+Library module initialization.
+"""
 
-from fast_proxy_manager.manager import Manager
-from fast_proxy_manager.utils import NoProxyAvailable, ProxyDict, URL
-from fast_proxy_manager.get import fetch_json_proxy_list, fetch_github_proxifly
+from typing import Tuple, List
+from functools import partial
+
+from .manager import Manager
+from .utils import NoProxyAvailable, ProxyDict, URL
+from .get import fetch_json_proxy_list, fetch_github_proxifly
 
 
 class Fetch:
@@ -17,4 +23,22 @@ class Fetch:
         return await fetch_json_proxy_list(url)
 
 
-__all__ = ['Manager', 'NoProxyAvailable', 'ProxyDict', 'URL', 'Fetch']
+# Version information
+from . import version
+
+# Define what will be imported with `from library import *`
+__all__: Tuple[str, ...] = (
+    "Manager",
+    "NoProxyAvailable",
+    "ProxyDict",
+    "URL",
+    "Fetch",
+    "__version__",
+    "partial",  # directly import partial from functools
+)
+
+__version__ = version.__version__
+
+
+def __dir__() -> Tuple[str, ...]:
+    return list(__all__) + ["__doc__"]

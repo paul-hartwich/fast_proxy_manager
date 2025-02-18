@@ -7,7 +7,7 @@ logger = logging.getLogger("fast_proxy_manager")
 logger.propagate = True  # if true uses the root logger when set
 
 if not logger.hasHandlers():
-    logger.setLevel(logging.DEBUG)  # default level for the logger in this lib
+    logger.setLevel(logging.INFO)  # default level for the logger in this lib
 
     # Create a console handler for general messages
     console_handler = logging.StreamHandler()

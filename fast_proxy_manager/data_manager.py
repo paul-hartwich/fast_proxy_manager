@@ -2,9 +2,9 @@ from random import choice
 from pathlib import Path
 from typing import Optional, List, Union
 
-from file_ops import read_msgpack, write_msgpack
-from utils import ProxyDict, NoProxyAvailable, URL, ProxyIndex
-from logger import logger
+from .file_ops import read_msgpack, write_msgpack
+from .utils import ProxyDict, NoProxyAvailable, URL, ProxyIndex
+from .logger import logger
 
 from orjson import JSONDecodeError
 

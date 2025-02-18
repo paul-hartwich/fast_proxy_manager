@@ -2,10 +2,10 @@ from functools import partial
 from typing import List, Union, Callable
 from pathlib import Path
 
-from data_manager import DataManager
-from utils import ProxyDict
-from test_proxies import get_valid_proxies
-from logger import logger
+from .data_manager import DataManager
+from .utils import ProxyDict
+from .test_proxies import get_valid_proxies
+from .logger import logger
 
 
 class Manager:

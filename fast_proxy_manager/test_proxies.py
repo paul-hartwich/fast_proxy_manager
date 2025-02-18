@@ -1,11 +1,11 @@
-import asyncio
 from typing import Tuple, List, Union, Dict
-import aiohttp
-from utils import ProxyDict
-import utils
 from random import shuffle
-from logger import logger
+import asyncio
 
+from .utils import ProxyDict
+from .logger import logger
+
+import aiohttp
 
 async def _is_proxy_valid(proxy: ProxyDict, session: aiohttp.ClientSession,
                           supported_protocols: Tuple[str] = ('http', 'https')) -> Union[ProxyDict, None]:
@@ -55,7 +55,9 @@ if __name__ == '__main__':
     from get import fetch_github_proxifly, fetch_json_proxy_list
     from icecream import ic
     import logging
+
     logger.setLevel(logging.DEBUG)
+    import utils
 
 
     async def main():

@@ -1,5 +1,6 @@
-import msgpack
 from pathlib import Path
+
+import msgpack
 
 
 def read_msgpack(file: Path) -> list[dict]:

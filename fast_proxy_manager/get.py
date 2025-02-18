@@ -1,8 +1,8 @@
 from typing import List
 import asyncio
 
-from utils import URL, ProxyDict, convert_to_proxy_dict_format
-from logger import logger
+from .utils import URL, ProxyDict, convert_to_proxy_dict_format
+from .logger import logger
 
 import orjson
 import aiohttp
