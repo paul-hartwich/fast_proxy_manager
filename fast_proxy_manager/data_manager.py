@@ -20,12 +20,20 @@ def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
     return protocols
 
 
+def _rm_duplicate_proxies(proxies: List[ProxyDict]) -> List[ProxyDict]:
+    new_proxies = []
+    for proxy in proxies:
+        if proxy not in new_proxies:
+            new_proxies.append(proxy)
+    return new_proxies
+
+
 class DataManager:
-    def __init__(self, msgpack: Optional[Path] = Path("proxy_data"),
-                 allowed_fails_in_row: int = 2,
-                 fails_without_check: int = 2,
-                 percent_failed_to_remove: float = 0.5,
-                 min_proxies: int = 0):
+    def __init__(self, msgpack: Optional[Path],
+                 allowed_fails_in_row: int,
+                 fails_without_check: int,
+                 percent_failed_to_remove: float,
+                 min_proxies: int):
         """
         Get add and remove proxies from a list with some extra features.
 
@@ -38,13 +46,17 @@ class DataManager:
         :param min_proxies: When len(proxies) < min_proxies -> fetch more proxies
         """
 
+        self.msgpack = msgpack if msgpack else None
         self.allowed_fails_in_row = allowed_fails_in_row
         self.fails_without_check = fails_without_check
         self.percent_failed_to_remove = percent_failed_to_remove
         self.min_proxies = min_proxies
-        self.msgpack = msgpack if msgpack else None
+
         self.proxies = self._load_proxies()
-        logger.debug(f"Loaded {len(self.proxies)} proxies on init")
+        if self.msgpack:
+            logger.debug(f"Loaded {len(self.proxies)} proxies on init")
+        else:
+            logger.debug("Not storing data in a file!")
         self.last_proxy_index = None
         self.index = ProxyIndex()
         self.index.rebuild_index(self.proxies)  # Initialize index with loaded proxies
@@ -60,20 +72,6 @@ class DataManager:
 
     def _write_data(self):
         self.msgpack and write_msgpack(self.msgpack, self.proxies)
-
-    def _rm_duplicate_proxies(self):
-        seen_urls = set()
-        new_proxies = [
-            proxy for proxy in reversed(self.proxies)
-            if not (proxy['url'] in seen_urls or seen_urls.add(proxy['url']))
-        ]
-        self.proxies = new_proxies
-        self.index.rebuild_index(self.proxies)  # Rebuild index after removing duplicates
-
-    def update_data(self, remove_duplicates: bool = True):
-        if remove_duplicates:
-            self._rm_duplicate_proxies()
-        self._write_data()
 
     def force_rm_last_proxy(self):
         if self.last_proxy_index is not None:
@@ -104,10 +102,11 @@ class DataManager:
                              f"{'too many failures in a row' if proxy.get('times_failed_in_row', 0) > self.allowed_fails_in_row else 'bad success-failure ratio'}. "
                              f"f:{proxy.get('times_failed', 0)} s:{proxy.get('times_succeed', 0)} "
                              f"f_in_row:{proxy.get('times_failed_in_row', 0)}")
-            self.rm_proxy(self.last_proxy_index)
+                self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
-    def add_proxy(self, proxies: List[ProxyDict]):
+    def add_proxy(self, proxies: List[ProxyDict], remove_duplicates=False) -> None:
+        """Adds them when wanted, writes them to a file and removes duplicates when wanted"""
         start_index = len(self.proxies)
         new_proxies = []
         for proxy in proxies:
@@ -124,14 +123,19 @@ class DataManager:
 
             new_proxies.append(proxy)
 
-        logger.debug(f"Adding {len(new_proxies)} proxies")
+        initial_proxies = len(new_proxies)
+
+        if remove_duplicates:
+            new_proxies = _rm_duplicate_proxies(new_proxies)
+
+        logger.debug(f"Adding {len(new_proxies)} proxies. Removed {initial_proxies - len(new_proxies)} duplicates.")
         self.proxies.extend(new_proxies)
 
         # Update index for new proxies
         for i, proxy in enumerate(new_proxies, start=start_index):
             self.index.add_proxy(i, proxy)
 
-        self.update_data(remove_duplicates=True)
+        self._write_data()
 
     def rm_proxy(self, index: int):
         if 0 <= index < len(self.proxies):
@@ -156,7 +160,8 @@ class DataManager:
         self.index.clear()
         self._write_data()
 
-    def get_proxy(self, return_type: str = "url", protocol: Union[list[str], str, None] = None,
+    def get_proxy(self, return_type: str = "url",
+                  protocol: Union[list[str], str, None] = None,
                   country: Union[list[str], str, None] = None,
                   anonymity: Union[list[str], str, None] = None,
                   exclude_protocol: Union[list[str], str, None] = None,
@@ -164,7 +169,7 @@ class DataManager:
                   exclude_anonymity: Union[list[str], str, None] = None) -> URL:
 
         if self.min_proxies and len(self.proxies) < self.min_proxies:
-            raise NoProxyAvailable("Not enough proxies available. Fetch more proxies.")
+            raise NoProxyAvailable("Not enough proxies available.")
 
         valid_indices = set(range(len(self.proxies)))
 

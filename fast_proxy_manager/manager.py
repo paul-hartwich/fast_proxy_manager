@@ -43,11 +43,6 @@ class Manager:
         self.max_proxies = max_proxies
         self.min_proxies = min_proxies
 
-        if data_file is not None:
-            self.data_file = Path(data_file)
-        else:
-            self.data_file = None
-
         if proxy_preferences is None:
             self.proxy_preferences = ProxyPreferences()
         else:
@@ -56,12 +51,14 @@ class Manager:
 
         self.failed_get_proxies_in_row: int = 0
 
-        self.data_manager = DataManager(msgpack=self.data_file, allowed_fails_in_row=allowed_fails_in_row,
+        self.data_manager = DataManager(msgpack=data_file,
+                                        allowed_fails_in_row=allowed_fails_in_row,
                                         fails_without_check=fails_without_check,
-                                        percent_failed_to_remove=percent_failed_to_remove)
+                                        percent_failed_to_remove=percent_failed_to_remove,
+                                        min_proxies=min_proxies)
 
     async def _async_init(self):
-        if len(self.data_manager) < self.min_proxies:
+        if len(self.data_manager) < self.min_proxies and self.auto_fetch_proxies:
             await self.fetch_proxies()
             logger.debug(f"Finished fetching proxies on init")
         return self
@@ -90,20 +87,22 @@ class Manager:
 
         logger.debug(f"Fetched {len(all_proxies)} proxies")
 
-        self.data_manager.add_proxy(all_proxies)
-        if self.data_file is not None:
-            self.data_manager.update_data()
+        self.data_manager.add_proxy(all_proxies, remove_duplicates=True if len(fetching_method) > 1 else False)
 
-    async def get_proxy(self, ignore_preferences=False, **kwargs):
+    async def get_proxy(self, ignore_preferences=False,
+                        return_type: str = "url",
+                        protocol: Union[list[str], str, None] = None,
+                        country: Union[list[str], str, None] = None,
+                        anonymity: Union[list[str], str, None] = None,
+                        exclude_protocol: Union[list[str], str, None] = None,
+                        exclude_country: Union[list[str], str, None] = None,
+                        exclude_anonymity: Union[list[str], str, None] = None) -> str:
         if ignore_preferences:
             preferences = {}
         else:
-            preferences = {
-                key: kwargs.get(key, self.proxy_preferences.get(key))
-                for key in [
-                    'protocol', 'country', 'anonymity', 'exclude_protocol', 'exclude_country', 'exclude_anonymity'
-                ]
-            }  # Get the preferences from the kwargs or the default preferences individually
+            preferences = {'return_type': return_type, 'protocol': protocol, 'country': country, 'anonymity': anonymity,
+                           'exclude_protocol': exclude_protocol, 'exclude_country': exclude_country,
+                           'exclude_anonymity': exclude_anonymity}
 
             try:
                 proxy = self.data_manager.get_proxy(**preferences)
@@ -120,7 +119,7 @@ class Manager:
                             f"Failed to get proxy with preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
 
                     await self.fetch_proxies()
-                    return await self.get_proxy(ignore_preferences=False, **kwargs)
+                    return await self.get_proxy(ignore_preferences=False, **preferences)
 
                 elif self.auto_fetch_proxies and not self.force_preferences:  # try removing preferences
                     if self.failed_get_proxies_in_row == 1:  # just try again without preferences
@@ -138,3 +137,10 @@ class Manager:
 
                 else:
                     raise NoProxyAvailable("No proxy available")
+
+    def feedback_proxy(self, success: bool) -> None:
+        """Just feedback to the DataManager if the last proxy was successful or not."""
+        self.data_manager.feedback_proxy(success)
+
+    def __len__(self):
+        return len(self.data_manager)

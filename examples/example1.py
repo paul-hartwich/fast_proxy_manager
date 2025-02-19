@@ -12,7 +12,7 @@ async def main():
 
     await manager.fetch_proxies(test_proxies=False)
 
-    manager.get_proxy(protocol="http")
+    await manager.get_proxy(protocol="http")
 
 
 asyncio.run(main())

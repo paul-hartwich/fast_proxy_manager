@@ -8,7 +8,7 @@ with open("requirements.txt") as f:
 
 setup(
     name="can_of_proxy",
-    version="0.0.1",
+    version="0.1.0",
     description="""Easy but powerful proxy management python package. Used to fetch, manage, rotate and use proxies. """,
     long_description=long_description,
     long_description_content_type="text/markdown",
