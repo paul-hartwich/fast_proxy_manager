@@ -105,36 +105,36 @@ class Manager:
                 ]
             }  # Get the preferences from the kwargs or the default preferences individually
 
-        try:
-            proxy = self.data_manager.get_proxy(**preferences)
-            self.failed_get_proxies_in_row = 0
-            return proxy
-        except NoProxyAvailable:
-            self.failed_get_proxies_in_row += 1
+            try:
+                proxy = self.data_manager.get_proxy(**preferences)
+                self.failed_get_proxies_in_row = 0
+                return proxy
+            except NoProxyAvailable:
+                self.failed_get_proxies_in_row += 1
 
-            if self.auto_fetch_proxies and self.force_preferences:  # fetch more proxies
-                if self.failed_get_proxies_in_row == 1:
-                    logger.debug("No proxy available, fetching more proxies")
-                elif self.failed_get_proxies_in_row > 1:
-                    logger.critical(
-                        f"Failed to get proxy with preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
+                if self.auto_fetch_proxies and self.force_preferences:  # fetch more proxies
+                    if self.failed_get_proxies_in_row == 1:
+                        logger.debug("No proxy available, fetching more proxies")
+                    elif self.failed_get_proxies_in_row > 1:
+                        logger.critical(
+                            f"Failed to get proxy with preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
 
-                await self.fetch_proxies()
-                return await self.get_proxy(ignore_preferences=False, **kwargs)
-
-            elif self.auto_fetch_proxies and not self.force_preferences:  # try removing preferences
-                if self.failed_get_proxies_in_row == 1:  # just try again without preferences
-                    logger.debug("Failed to get proxy, trying without preferences")
-                    return await self.get_proxy(ignore_preferences=True)
-                elif self.failed_get_proxies_in_row == 2:  # didn't work, fetch more proxies
-                    logger.debug("Failed to get proxy without preferences, fetching more proxies now")
                     await self.fetch_proxies()
-                    return await self.get_proxy(ignore_preferences=True)
-                elif self.failed_get_proxies_in_row > 2:  # very bad, try fetch and then without preferences
-                    logger.critical(
-                        f"Failed to get proxy without preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
-                    await self.fetch_proxies()
-                    return await self.get_proxy(ignore_preferences=True)
+                    return await self.get_proxy(ignore_preferences=False, **kwargs)
 
-            else:
-                raise NoProxyAvailable("No proxy available")
+                elif self.auto_fetch_proxies and not self.force_preferences:  # try removing preferences
+                    if self.failed_get_proxies_in_row == 1:  # just try again without preferences
+                        logger.debug("Failed to get proxy, trying without preferences")
+                        return await self.get_proxy(ignore_preferences=True)
+                    elif self.failed_get_proxies_in_row == 2:  # didn't work, fetch more proxies
+                        logger.debug("Failed to get proxy without preferences, fetching more proxies now")
+                        await self.fetch_proxies()
+                        return await self.get_proxy(ignore_preferences=True)
+                    elif self.failed_get_proxies_in_row > 2:  # very bad, try fetch and then without preferences
+                        logger.critical(
+                            f"Failed to get proxy without preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
+                        await self.fetch_proxies()
+                        return await self.get_proxy(ignore_preferences=True)
+
+                else:
+                    raise NoProxyAvailable("No proxy available")
