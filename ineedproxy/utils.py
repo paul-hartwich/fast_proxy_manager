@@ -61,7 +61,7 @@ class URL:
         return protocol, ip, port
 
     def __str__(self):
-        return f"URL(protocol={self.protocol:<6}, ip={self.ip:<15}, port={self.port:<5})"
+        return self.url
 
     def __repr__(self):
         return self.url

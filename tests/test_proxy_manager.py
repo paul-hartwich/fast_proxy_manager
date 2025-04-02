@@ -151,7 +151,7 @@ class TestProxyManager(unittest.IsolatedAsyncioTestCase):
 
         # Test single proxy behavior
         proxy = await self.manager.get_proxy()
-        self.assertEqual(str(proxy), "http://123.123.123.123:1")
+        self.assertEqual(proxy, "http://123.123.123.123:1")
         self.assertEqual(self.manager.data_manager.last_proxy_index, 0)
 
         # Test repeated call with single proxy

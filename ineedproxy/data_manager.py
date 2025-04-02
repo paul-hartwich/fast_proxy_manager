@@ -135,11 +135,8 @@ class DataManager:
             proxy = self.proxies[index]
             self.index.remove_proxy(index, proxy)
 
-            # Remove from a list
+            # Remove from a proxy list
             self.proxies.pop(index)
-
-            # Update indices for remaining proxies
-            self.index.rebuild_index(self.proxies)
 
             if self.last_proxy_index is not None and index < self.last_proxy_index:
                 self.last_proxy_index -= 1
