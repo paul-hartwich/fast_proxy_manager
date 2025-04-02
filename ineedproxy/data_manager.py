@@ -154,12 +154,12 @@ class DataManager:
         self._write_data()
 
     def get_proxy(self,
-                  protocol: Union[List[str], str, None] = None,
-                  country: Union[List[str], str, None] = None,
-                  anonymity: Union[List[str], str, None] = None,
-                  exclude_protocol: Union[List[str], str, None] = None,
-                  exclude_country: Union[List[str], str, None] = None,
-                  exclude_anonymity: Union[List[str], str, None] = None) -> URL:
+                  protocol: Union[list[str], str, None] = None,
+                  country: Union[list[str], str, None] = None,
+                  anonymity: Union[list[str], str, None] = None,
+                  exclude_protocol: Union[list[str], str, None] = None,
+                  exclude_country: Union[list[str], str, None] = None,
+                  exclude_anonymity: Union[list[str], str, None] = None) -> URL:
 
         if self.min_proxies and len(self.proxies) < self.min_proxies:
             raise NoProxyAvailable("Not enough proxies available.")
@@ -167,16 +167,46 @@ class DataManager:
         valid_indices = set(range(len(self.proxies)))
 
         # Include filters
-        valid_indices &= self._filter_proxies(protocol, country, anonymity)
+        if protocol:
+            protocol = [protocol] if isinstance(protocol, str) else protocol
+            protocol_indices = set().union(*(self.index.protocol_index[p] for p in protocol))
+            valid_indices &= protocol_indices
+
+        if country:
+            country = [country] if isinstance(country, str) else country
+            country_indices = set().union(*(self.index.country_index[c] for c in country))
+            valid_indices &= country_indices
+
+        if anonymity:
+            anonymity = [anonymity] if isinstance(anonymity, str) else anonymity
+            anonymity_indices = set().union(*(self.index.anonymity_index[a] for a in anonymity))
+            valid_indices &= anonymity_indices
 
         # Exclude filters
-        valid_indices -= self._filter_proxies(exclude_protocol, exclude_country, exclude_anonymity)
+        if exclude_protocol:
+            exclude_protocol = [exclude_protocol] if isinstance(exclude_protocol, str) else exclude_protocol
+            exclude_indices = set().union(*(self.index.protocol_index[p] for p in exclude_protocol))
+            valid_indices -= exclude_indices
+
+        if exclude_country:
+            exclude_country = [exclude_country] if isinstance(exclude_country, str) else exclude_country
+            exclude_indices = set().union(*(self.index.country_index[c] for c in exclude_country))
+            valid_indices -= exclude_indices
+
+        if exclude_anonymity:
+            exclude_anonymity = [exclude_anonymity] if isinstance(exclude_anonymity, str) else exclude_anonymity
+            exclude_indices = set().union(*(self.index.anonymity_index[a] for a in exclude_anonymity))
+            valid_indices -= exclude_indices
 
         if not valid_indices:
             raise NoProxyAvailable("No proxy found with the given parameters.")
 
         # Avoid consecutive same proxy unless it's the only option
-        if self.last_proxy_index is not None and self.last_proxy_index in valid_indices and len(valid_indices) > 1:
+        if (
+                self.last_proxy_index is not None
+                and self.last_proxy_index in valid_indices
+                and len(valid_indices) > 1
+        ):
             valid_indices.remove(self.last_proxy_index)
 
         selected_index = choice(list(valid_indices))
@@ -184,25 +214,6 @@ class DataManager:
         chosen_proxy = self.proxies[selected_index]["url"]
         logger.debug(f"Chosen proxy: {chosen_proxy}")
         return chosen_proxy
-
-    def _filter_proxies(self, protocol, country, anonymity):
-        valid_indices = set(range(len(self.proxies)))
-        if protocol:
-            protocol = [protocol] if isinstance(protocol, str) else protocol
-            protocol_indices = set().union(*(self.index.protocol_index.get(p, set()) for p in protocol))
-            valid_indices &= protocol_indices
-
-        if country:
-            country = [country] if isinstance(country, str) else country
-            country_indices = set().union(*(self.index.country_index.get(c, set()) for c in country))
-            valid_indices &= country_indices
-
-        if anonymity:
-            anonymity = [anonymity] if isinstance(anonymity, str) else anonymity
-            anonymity_indices = set().union(*(self.index.anonymity_index.get(a, set()) for a in anonymity))
-            valid_indices &= anonymity_indices
-
-        return valid_indices
 
     def __len__(self):
         return len(self.proxies)
