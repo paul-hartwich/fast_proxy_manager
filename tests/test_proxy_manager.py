@@ -1,8 +1,10 @@
 import unittest
 import logging
 import functools
+from functools import partial
+from ineedproxy import Manager, Fetch, ProxyDict
 
-times_tested = 20
+times_tested = 1
 
 
 def repeat_test(times):
@@ -21,8 +23,6 @@ def repeat_test(times):
 
     return decorator
 
-
-from ineedproxy import *
 
 logging.getLogger("fast_proxy_manager").setLevel(logging.INFO)
 

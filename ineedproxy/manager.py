@@ -90,7 +90,6 @@ class Manager:
         self.data_manager.add_proxy(all_proxies, remove_duplicates=True if len(fetching_method) > 1 else False)
 
     async def get_proxy(self, ignore_preferences=False,
-                        return_type: str = "url",
                         protocol: Union[list[str], str, None] = None,
                         country: Union[list[str], str, None] = None,
                         anonymity: Union[list[str], str, None] = None,
@@ -100,7 +99,7 @@ class Manager:
         if ignore_preferences:
             preferences = {}
         else:
-            preferences = {'return_type': return_type, 'protocol': protocol, 'country': country, 'anonymity': anonymity,
+            preferences = {'protocol': protocol, 'country': country, 'anonymity': anonymity,
                            'exclude_protocol': exclude_protocol, 'exclude_country': exclude_country,
                            'exclude_anonymity': exclude_anonymity}
 
