@@ -14,8 +14,8 @@ def _validate_protocol(protocols: list[str] | str | None) -> list[str] | None:
         return None
     if isinstance(protocols, str):
         protocols = [protocols]
-    if any(protocol not in ("http", "https", "socks4", "socks5") for protocol in protocols):
-        invalid_protocol = next(p for p in protocols if p not in ("http", "https", "socks4", "socks5"))
+    invalid_protocol = next((p for p in protocols if p not in ("http", "https", "socks4", "socks5")), None)
+    if invalid_protocol:
         raise ValueError(f"You can't use this protocol: {invalid_protocol}")
     return protocols
 
