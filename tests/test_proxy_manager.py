@@ -22,7 +22,7 @@ def repeat_test(times):
     return decorator
 
 
-from fast_proxy_manager import *
+from ineedproxy import *
 
 logging.getLogger("fast_proxy_manager").setLevel(logging.INFO)
 
@@ -104,7 +104,7 @@ class TestProxyManager(unittest.IsolatedAsyncioTestCase):
         initial_proxies = self.manager.data_manager.proxies.copy()
         first_proxy_url = await self.manager.get_proxy()
 
-        for i in range(2):
+        for _ in range(2):
             self.manager.feedback_proxy(success=False)
             self.assertEqual(len(self.manager), 4)
 

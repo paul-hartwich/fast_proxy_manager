@@ -60,7 +60,7 @@ class Manager:
     async def _async_init(self):
         if len(self.data_manager) < self.min_proxies and self.auto_fetch_proxies:
             await self.fetch_proxies()
-            logger.debug(f"Finished fetching proxies on init")
+            logger.debug("Finished fetching proxies on init")
         return self
 
     def __await__(self):
@@ -121,15 +121,15 @@ class Manager:
                     await self.fetch_proxies()
                     return await self.get_proxy(ignore_preferences=False, **preferences)
 
-                elif self.auto_fetch_proxies and not self.force_preferences:  # try removing preferences
+                if self.auto_fetch_proxies and not self.force_preferences:  # try removing preferences
                     if self.failed_get_proxies_in_row == 1:  # just try again without preferences
                         logger.debug("Failed to get proxy, trying without preferences")
                         return await self.get_proxy(ignore_preferences=True)
-                    elif self.failed_get_proxies_in_row == 2:  # didn't work, fetch more proxies
+                    if self.failed_get_proxies_in_row == 2:  # didn't work, fetch more proxies
                         logger.debug("Failed to get proxy without preferences, fetching more proxies now")
                         await self.fetch_proxies()
                         return await self.get_proxy(ignore_preferences=True)
-                    elif self.failed_get_proxies_in_row > 2:  # very bad, try fetch and then without preferences
+                    if self.failed_get_proxies_in_row > 2:  # very bad, try fetch and then without preferences
                         logger.critical(
                             f"Failed to get proxy without preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
                         await self.fetch_proxies()

@@ -67,7 +67,14 @@ class URL:
         return self.url
 
     def __eq__(self, other):
-        return self.url == other.url
+        # Equality is based on all parts of the URL
+        if not isinstance(other, URL):
+            return False
+        return (self.protocol, self.ip, self.port) == (other.protocol, other.ip, other.port)
+
+    def __hash__(self):
+        # Combine protocol, ip, and port for hashing
+        return hash((self.protocol, self.ip, self.port))
 
     def is_absolute(self) -> bool:
         return self.protocol is not None and self.ip is not None and self.port is not None
