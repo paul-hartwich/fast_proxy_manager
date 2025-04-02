@@ -3,7 +3,7 @@ import logging
 # sets the level of the asyncio logger to CRITICAL, necessary to avoid unnecessary logs when testing proxies
 logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
-logger = logging.getLogger("fast_proxy_manager")
+logger = logging.getLogger("ineedproxy")
 logger.propagate = True  # if true uses the root logger when set
 
 if not logger.hasHandlers():

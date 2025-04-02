@@ -35,14 +35,7 @@ async def get_request(url: str, retries: int = 1, timeout: int = 10,
 
 async def fetch_github_proxifly() -> List[ProxyDict]:
     url = "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.json"
-    response = await get_request(url, retries=3, timeout=15)
-
-    try:
-        proxies = orjson.loads(response)
-        return convert_to_proxy_dict_format(proxies)
-    except orjson.JSONDecodeError:
-        logger.error("Failed to parse JSON")
-        return []
+    return await fetch_json_proxy_list(url)
 
 
 async def fetch_json_proxy_list(url: str) -> List[ProxyDict]:
@@ -51,7 +44,9 @@ async def fetch_json_proxy_list(url: str) -> List[ProxyDict]:
 
     try:
         proxies = orjson.loads(response)
-        return convert_to_proxy_dict_format(proxies)
+        proxy_list = convert_to_proxy_dict_format(proxies)
+        logger.debug("Fetched %d proxies", len(proxy_list))
+        return proxy_list
     except orjson.JSONDecodeError:
         logger.error("Failed to parse JSON")
         return []

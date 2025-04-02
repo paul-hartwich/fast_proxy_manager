@@ -17,7 +17,8 @@ class Manager:
                  fails_without_check: int = 2,
                  percent_failed_to_remove: float = 0.5,
                  max_proxies: Union[int, False] = 10,
-                 min_proxies: Union[int, False] = 1):
+                 min_proxies: Union[int, False] = 2,
+                 simultaneous_proxy_requests: int = 300) -> None:
         """
         The main class to control pretty much everything.
 
@@ -36,7 +37,9 @@ class Manager:
         :param max_proxies: Maximum number of proxies to be fetched.
         Saves time when testing proxies.
         :param min_proxies: When len(proxies) < min_proxies, fetch more proxies.
+        :param simultaneous_proxy_requests: Number of simultaneous requests to test proxies.
         """
+        self.simultaneous_proxy_requests = simultaneous_proxy_requests
         self.auto_fetch_proxies = auto_fetch_proxies
 
         self.fetching_method = fetching_method
@@ -83,9 +86,10 @@ class Manager:
             all_proxies.extend(proxies)
 
         if test_proxies:
-            all_proxies = await get_valid_proxies(all_proxies, max_working_proxies=self.max_proxies)
+            all_proxies = await get_valid_proxies(all_proxies, max_working_proxies=self.max_proxies,
+                                                  simultaneous_proxy_requests=self.simultaneous_proxy_requests)
 
-        logger.debug(f"Fetched {len(all_proxies)} proxies")
+        logger.debug("Fetched %d proxies", len(all_proxies))
 
         self.data_manager.add_proxy(all_proxies, remove_duplicates=True if len(fetching_method) > 1 else False)
 
@@ -102,7 +106,6 @@ class Manager:
             preferences = {'protocol': protocol, 'country': country, 'anonymity': anonymity,
                            'exclude_protocol': exclude_protocol, 'exclude_country': exclude_country,
                            'exclude_anonymity': exclude_anonymity}
-
             try:
                 proxy = self.data_manager.get_proxy(**preferences)
                 self.failed_get_proxies_in_row = 0
@@ -114,23 +117,26 @@ class Manager:
                     if self.failed_get_proxies_in_row == 1:
                         logger.debug("No proxy available, fetching more proxies")
                     elif self.failed_get_proxies_in_row > 1:
-                        logger.critical(
-                            f"Failed to get proxy with preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
+                        logger.debug(
+                            "Failed to get proxy with preferences for the %d time in a row. Fetching more proxies.",
+                            self.failed_get_proxies_in_row)
 
                     await self.fetch_proxies()
                     return await self.get_proxy(ignore_preferences=False, **preferences)
 
                 if self.auto_fetch_proxies and not self.force_preferences:  # try removing preferences
                     if self.failed_get_proxies_in_row == 1:  # just try again without preferences
-                        logger.debug("Failed to get proxy, trying without preferences")
+                        logger.debug("Failed to get proxy with preferences. Trying without preferences.")
                         return await self.get_proxy(ignore_preferences=True)
                     if self.failed_get_proxies_in_row == 2:  # didn't work, fetch more proxies
-                        logger.debug("Failed to get proxy without preferences, fetching more proxies now")
+                        logger.debug("Failed to get proxy without preferences. Fetching more proxies.")
                         await self.fetch_proxies()
                         return await self.get_proxy(ignore_preferences=True)
                     if self.failed_get_proxies_in_row > 2:  # very bad, try fetch and then without preferences
                         logger.critical(
-                            f"Failed to get proxy without preferences for the {self.failed_get_proxies_in_row} time in a row! Please check your preferences and the fetching method.")
+                            "Failed to get proxy for the %d time in a row. Check preferences and fetching method.",
+                            self.failed_get_proxies_in_row)
+
                         await self.fetch_proxies()
                         return await self.get_proxy(ignore_preferences=True)
 
@@ -139,6 +145,8 @@ class Manager:
 
     def feedback_proxy(self, success: bool) -> None:
         """Just feedback to the DataManager if the last proxy was successful or not."""
+        logger.debug("Feedback: Proxy %s was %s.", self.data_manager.proxies[self.data_manager.last_proxy_index]["url"],
+                     "successful" if success else "unsuccessful")
         self.data_manager.feedback_proxy(success)
 
     def __len__(self):

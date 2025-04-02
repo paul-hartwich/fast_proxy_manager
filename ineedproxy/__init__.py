@@ -4,24 +4,10 @@ Library module initialization.
 """
 
 from typing import Tuple, List
-from functools import partial
 
 from .manager import Manager
 from .utils import NoProxyAvailable, ProxyPreferences, ProxyDict, URL
-from .get import fetch_json_proxy_list, fetch_github_proxifly
-
-
-class Fetch:
-    @staticmethod
-    async def proxifly() -> List[ProxyDict]:
-        """Fetch proxies from proxifly. Very large list. It May take a long while."""
-        return await fetch_github_proxifly()
-
-    @staticmethod
-    async def custom(url: str) -> List[ProxyDict]:
-        """Fetch proxies from a custom url. Can be better and faster."""
-        return await fetch_json_proxy_list(url)
-
+from .get import fetch_json_proxy_list
 
 # Version information
 from . import version
@@ -33,9 +19,8 @@ __all__: Tuple[str, ...] = (
     "ProxyPreferences",
     "ProxyDict",
     "URL",
-    "Fetch",
+    "fetch_json_proxy_list",
     "__version__",
-    "partial",  # directly import partial from functools
 )
 
 __version__ = version.__version__

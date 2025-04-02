@@ -48,7 +48,8 @@ class DataManager:
         self.min_proxies = min_proxies
 
         self.proxies = self._load_proxies()
-        logger.debug(f"Loaded {len(self.proxies)} proxies on init" if self.msgpack else "Not storing data in a file!")
+        logger.debug("Loaded %s proxies on init",
+                     len(self.proxies) if self.msgpack else "0 (Not storing data in a file!)")
 
         self.last_proxy_index = None
         self.index = ProxyIndex()
@@ -94,7 +95,12 @@ class DataManager:
 
             if should_remove:
                 logger.debug(
-                    f"Removing proxy {proxy['url']} due to {'too many failures in a row' if proxy.get('times_failed_in_row', 0) > self.allowed_fails_in_row else 'bad success-failure ratio'}.")
+                    "Removing proxy %s due to %s",
+                    proxy['url'],
+                    'too many failures in a row' if proxy.get('times_failed_in_row',
+                                                              0) > self.allowed_fails_in_row else 'bad success-failure ratio'
+                )
+
                 self.rm_proxy(self.last_proxy_index)
         self._write_data()
 
@@ -119,7 +125,7 @@ class DataManager:
         if remove_duplicates:
             new_proxies = _rm_duplicate_proxies(new_proxies)
 
-        logger.debug(f"Adding {len(new_proxies)} proxies. Removed {len(proxies) - len(new_proxies)} duplicates.")
+        logger.debug("Adding %d proxies. Removed %d duplicates.", len(new_proxies), len(proxies) - len(new_proxies))
         self.proxies.extend(new_proxies)
 
         # Update index for new proxies
@@ -142,7 +148,7 @@ class DataManager:
                 self.last_proxy_index -= 1
             self._write_data()
         else:
-            logger.error(f"Attempt to remove proxy at invalid index: {index}")
+            logger.error("Attempt to remove proxy at invalid index: %d", index)
             raise IndexError("Proxy does not exist")
 
     def rm_all_proxies(self):
@@ -209,7 +215,7 @@ class DataManager:
         selected_index = choice(list(valid_indices))
         self.last_proxy_index = selected_index
         chosen_proxy = self.proxies[selected_index]["url"]
-        logger.debug(f"Chosen proxy: {chosen_proxy}")
+        logger.debug(f"Chosen proxy: %s", chosen_proxy)
         return chosen_proxy
 
     def __len__(self):
