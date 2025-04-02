@@ -20,7 +20,7 @@ async def _is_proxy_valid(proxy: ProxyDict, session: aiohttp.ClientSession,
     try:
         async with session.get("https://httpbin.org/ip", proxy=url, allow_redirects=True, timeout=20) as response:
             if response.status == 200:
-                logger.debug(f"Valid: %s", url)
+                logger.debug("Valid: %s", url)
                 return proxy
             return None
     except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError):

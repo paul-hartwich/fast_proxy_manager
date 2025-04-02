@@ -215,7 +215,7 @@ class DataManager:
         selected_index = choice(list(valid_indices))
         self.last_proxy_index = selected_index
         chosen_proxy = self.proxies[selected_index]["url"]
-        logger.debug(f"Chosen proxy: %s", chosen_proxy)
+        logger.debug("Chosen proxy: %s", chosen_proxy)
         return chosen_proxy
 
     def __len__(self):
