@@ -7,7 +7,7 @@ with open("requirements.txt") as f:
     required = f.read().splitlines()
 
 setup(
-    name="can_of_proxy",
+    name="ineedproxy",
     version="0.1.0",
     description="""Easy but powerful proxy management python package. Used to fetch, manage, rotate and use proxies. """,
     long_description=long_description,
@@ -21,5 +21,5 @@ setup(
     ],
     install_requires=required,
     license="MIT",
-    url="https://github.com/paul-hartwich/can_of_proxy",
+    url="https://github.com/paul-hartwich/ineedproxy",
 )
