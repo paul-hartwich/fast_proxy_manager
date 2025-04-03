@@ -1,7 +1,6 @@
 from typing import Tuple, List, Union, Dict, Optional
 from random import shuffle
 import asyncio
-from urllib.parse import urlparse
 
 from .utils import ProxyDict
 from .logger import logger

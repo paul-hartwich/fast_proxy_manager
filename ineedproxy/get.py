@@ -72,7 +72,6 @@ async def get_request(
 
             except (
                     aiohttp.ClientError,
-                    aiohttp.ClientResponseError,
                     asyncio.TimeoutError
             ) as e:
                 last_exception = e
@@ -85,7 +84,7 @@ async def get_request(
                 break
 
         # If we got here, all retries failed
-        logger.error(f"All {retries} attempts failed for URL: {url}")
+        logger.debug(f"All {retries} attempts failed for URL: {url}")
         if last_exception:
             raise last_exception
         raise Exception(f"Failed to fetch {url} after {retries} attempts")

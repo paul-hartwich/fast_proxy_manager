@@ -117,18 +117,18 @@ class Manager:
             logger.debug("No proxy available, fetching more proxies")
             await self.fetch_proxies()
             return await self.get_proxy(ignore_preferences=False, **preferences_kwargs)
-        else:
-            if self.failed_get_proxies_in_row == 1:
-                logger.debug("Failed with preferences. Trying without preferences.")
-                return await self.get_proxy(ignore_preferences=True)
-            elif self.failed_get_proxies_in_row == 2:
-                logger.debug("Failed without preferences. Fetching more proxies.")
-                await self.fetch_proxies()
-                return await self.get_proxy(ignore_preferences=True)
-            else:
-                logger.critical("Failed to get proxy %d times in a row.", self.failed_get_proxies_in_row)
-                await self.fetch_proxies()
-                return await self.get_proxy(ignore_preferences=True)
+
+        if self.failed_get_proxies_in_row == 1:
+            logger.debug("Failed with preferences. Trying without preferences.")
+            return await self.get_proxy(ignore_preferences=True)
+        if self.failed_get_proxies_in_row == 2:
+            logger.debug("Failed without preferences. Fetching more proxies.")
+            await self.fetch_proxies()
+            return await self.get_proxy(ignore_preferences=True)
+
+        logger.critical("Failed to get proxy %d times in a row.", self.failed_get_proxies_in_row)
+        await self.fetch_proxies()
+        return await self.get_proxy(ignore_preferences=True)
 
     def feedback_proxy(self, success: bool) -> None:
         """Just feedback to the DataManager if the last proxy was successful or not."""
