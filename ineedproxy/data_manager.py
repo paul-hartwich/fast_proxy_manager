@@ -62,7 +62,8 @@ class DataManager:
             except JSONDecodeError:
                 logger.warning("Failed to decode msgpack, returning empty list.")
                 return []
-        self.msgpack and self.msgpack.touch(exist_ok=True)
+        if self.msgpack:
+            self.msgpack.touch(exist_ok=True)
         return []
 
     def _write_data(self):

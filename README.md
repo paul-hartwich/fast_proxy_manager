@@ -1,4 +1,4 @@
-# Can of Proxy
+# ineedproxy
 
 *Note: Please use this library with caution.
 It is Only For Educational Purposes.

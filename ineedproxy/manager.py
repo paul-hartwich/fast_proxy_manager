@@ -126,7 +126,8 @@ class Manager:
             await self.fetch_proxies()
             return await self.get_proxy(ignore_preferences=True)
 
-        logger.critical("Failed to get proxy %d times in a row.", self.failed_get_proxies_in_row)
+        logger.critical("Failed to get proxy %d times in a row.",
+                        self.failed_get_proxies_in_row)
         await self.fetch_proxies()
         return await self.get_proxy(ignore_preferences=True)
 
