@@ -9,11 +9,11 @@ with open("requirements.txt") as f:
 setup(
     name="ineedproxy",
     version="0.1.0",
-    description="""Easy but powerful proxy management python package. Used to fetch, manage, rotate and use proxies. """,
+    description="Easy but powerful proxy management Python package. Used to fetch, manage, rotate and use proxies.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Paul Hartwich",
-    packages=find_packages(include=["bitefix"]),
+    packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
