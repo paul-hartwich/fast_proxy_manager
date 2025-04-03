@@ -1,10 +1,12 @@
 from typing import List, Union, Callable
 from pathlib import Path
+import aiohttp
 
 from .data_manager import DataManager
 from .utils import ProxyDict, ProxyPreferences, NoProxyAvailable
 from .test_proxies import get_valid_proxies
 from .logger import logger
+from .get import get_request as _get_request
 
 
 class Manager:
@@ -100,9 +102,8 @@ class Manager:
                         exclude_protocol: Union[list[str], str, None] = None,
                         exclude_country: Union[list[str], str, None] = None,
                         exclude_anonymity: Union[list[str], str, None] = None) -> str:
-        if ignore_preferences:
-            preferences = {}
-        else:
+        """Returns a proxy from the data manager."""
+        if not ignore_preferences:
             preferences = {'protocol': protocol, 'country': country, 'anonymity': anonymity,
                            'exclude_protocol': exclude_protocol, 'exclude_country': exclude_country,
                            'exclude_anonymity': exclude_anonymity}
@@ -148,6 +149,33 @@ class Manager:
         logger.debug("Feedback: Proxy %s was %s.", self.data_manager.proxies[self.data_manager.last_proxy_index]["url"],
                      "successful" if success else "unsuccessful")
         self.data_manager.feedback_proxy(success)
+
+    async def get_request(self, url: str, timeout: int = 10,
+                          session: aiohttp.ClientSession = None) -> aiohttp.ClientResponse | None:
+        """
+        Sends a GET request using a proxy.
+        Will keep trying indefinitely until successful.
+
+        :param url: The URL to request.
+        :param timeout: Timeout for the request.
+        :param session: Optionally, an existing aiohttp.ClientSession.
+        :return: The full aiohttp.ClientResponse object or None if all attempts fail.
+        """
+
+        if session is None:
+            session = aiohttp.ClientSession()
+
+        while True:  # Infinite retry loop
+            proxy = await self.get_proxy()
+
+            try:
+                response = await _get_request(url=url, timeout=timeout, proxy=proxy, session=session)
+
+                self.feedback_proxy(success=True)
+                return response
+
+            except Exception:
+                self.feedback_proxy(success=False)
 
     def __len__(self):
         return len(self.data_manager)

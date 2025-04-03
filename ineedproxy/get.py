@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import asyncio
 
 from .utils import URL, ProxyDict, convert_to_proxy_dict_format
@@ -9,8 +9,8 @@ import aiohttp
 
 
 async def get_request(url: str, retries: int = 1, timeout: int = 10,
-                      proxy: URL = None, session: aiohttp.ClientSession = None
-                      ) -> aiohttp.ClientResponse:
+                      proxy: Optional[str] = None, session: Optional[aiohttp.ClientSession] = None,
+                      ) -> Optional[aiohttp.ClientResponse]:
     headers = {"User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"}
     created_session = False
 
@@ -20,22 +20,19 @@ async def get_request(url: str, retries: int = 1, timeout: int = 10,
                 session = aiohttp.ClientSession()
                 created_session = True
 
-            async with session.get(url, headers=headers, proxy=proxy, timeout=timeout, proxy_auth=None,
-                                   allow_redirects=True) as response:
+            async with session.get(url, headers=headers, proxy=proxy, timeout=timeout) as response:
                 return await response.text()
+
         except aiohttp.ClientConnectionError as e:
-            logger.error(f"Connection closed (Attempt {attempt + 1}/{retries}): {e}")
-            if attempt == retries - 1:
-                raise  # Give up after max retries
-            await asyncio.sleep(1)  # Wait before retrying
-        finally:
-            if created_session and session is not None and not session.closed:
-                await session.close()
+            logger.error(f"Connection error (Attempt {attempt + 1}/{retries}): {e}")
 
+        if attempt < retries - 1:
+            await asyncio.sleep(1)
 
-async def fetch_github_proxifly() -> List[ProxyDict]:
-    url = "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.json"
-    return await fetch_json_proxy_list(url)
+    if created_session:
+        await session.close()
+
+    return None  # If all retries fail, return None
 
 
 async def fetch_json_proxy_list(url: str) -> List[ProxyDict]:

@@ -18,7 +18,7 @@ async def _is_proxy_valid(proxy: ProxyDict, session: aiohttp.ClientSession,
         return None
 
     try:
-        async with session.get("https://httpbin.org/ip", proxy=url, allow_redirects=True, timeout=20) as response:
+        async with session.get("https://httpbin.org/ip", proxy=str(url), allow_redirects=True, timeout=20) as response:
             if response.status == 200:
                 logger.debug("Valid: %s", url)
                 return proxy
