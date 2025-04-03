@@ -95,54 +95,40 @@ class Manager:
 
         self.data_manager.add_proxy(all_proxies, remove_duplicates=True if len(fetching_method) > 1 else False)
 
-    async def get_proxy(self, ignore_preferences=False,
-                        protocol: Union[list[str], str, None] = None,
-                        country: Union[list[str], str, None] = None,
-                        anonymity: Union[list[str], str, None] = None,
-                        exclude_protocol: Union[list[str], str, None] = None,
-                        exclude_country: Union[list[str], str, None] = None,
-                        exclude_anonymity: Union[list[str], str, None] = None) -> str:
+    async def get_proxy(self, ignore_preferences=False, **preferences_kwargs) -> str:
         """Returns a proxy from the data manager."""
         if not ignore_preferences:
-            preferences = {'protocol': protocol, 'country': country, 'anonymity': anonymity,
-                           'exclude_protocol': exclude_protocol, 'exclude_country': exclude_country,
-                           'exclude_anonymity': exclude_anonymity}
             try:
-                proxy = self.data_manager.get_proxy(**preferences)
+                proxy = self.data_manager.get_proxy(**preferences_kwargs)
                 self.failed_get_proxies_in_row = 0
                 return proxy
             except NoProxyAvailable:
                 self.failed_get_proxies_in_row += 1
+                return await self._handle_no_proxy_available(preferences_kwargs)
+        else:
+            return self.data_manager.get_proxy()
 
-                if self.auto_fetch_proxies and self.force_preferences:  # fetch more proxies
-                    if self.failed_get_proxies_in_row == 1:
-                        logger.debug("No proxy available, fetching more proxies")
-                    elif self.failed_get_proxies_in_row > 1:
-                        logger.debug(
-                            "Failed to get proxy with preferences for the %d time in a row. Fetching more proxies.",
-                            self.failed_get_proxies_in_row)
+    async def _handle_no_proxy_available(self, preferences_kwargs):
+        """Helper method to handle NoProxyAvailable exceptions."""
+        if not self.auto_fetch_proxies:
+            raise NoProxyAvailable("No proxy available")
 
-                    await self.fetch_proxies()
-                    return await self.get_proxy(ignore_preferences=False, **preferences)
-
-                if self.auto_fetch_proxies and not self.force_preferences:  # try removing preferences
-                    if self.failed_get_proxies_in_row == 1:  # just try again without preferences
-                        logger.debug("Failed to get proxy with preferences. Trying without preferences.")
-                        return await self.get_proxy(ignore_preferences=True)
-                    if self.failed_get_proxies_in_row == 2:  # didn't work, fetch more proxies
-                        logger.debug("Failed to get proxy without preferences. Fetching more proxies.")
-                        await self.fetch_proxies()
-                        return await self.get_proxy(ignore_preferences=True)
-                    if self.failed_get_proxies_in_row > 2:  # very bad, try fetch and then without preferences
-                        logger.critical(
-                            "Failed to get proxy for the %d time in a row. Check preferences and fetching method.",
-                            self.failed_get_proxies_in_row)
-
-                        await self.fetch_proxies()
-                        return await self.get_proxy(ignore_preferences=True)
-
-                else:
-                    raise NoProxyAvailable("No proxy available")
+        if self.force_preferences:
+            logger.debug("No proxy available, fetching more proxies")
+            await self.fetch_proxies()
+            return await self.get_proxy(ignore_preferences=False, **preferences_kwargs)
+        else:
+            if self.failed_get_proxies_in_row == 1:
+                logger.debug("Failed with preferences. Trying without preferences.")
+                return await self.get_proxy(ignore_preferences=True)
+            elif self.failed_get_proxies_in_row == 2:
+                logger.debug("Failed without preferences. Fetching more proxies.")
+                await self.fetch_proxies()
+                return await self.get_proxy(ignore_preferences=True)
+            else:
+                logger.critical("Failed to get proxy %d times in a row.", self.failed_get_proxies_in_row)
+                await self.fetch_proxies()
+                return await self.get_proxy(ignore_preferences=True)
 
     def feedback_proxy(self, success: bool) -> None:
         """Just feedback to the DataManager if the last proxy was successful or not."""

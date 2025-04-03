@@ -14,7 +14,7 @@ will not take responsibility for any misuse of this library.*
 pip install ineedproxy # currently not working
 ```
 
-## Description/Usage
-
 **Example:**
+
+For code example, see [basic_usage.py](example/basic_usage.py)
 
