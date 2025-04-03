@@ -8,7 +8,7 @@ with open("requirements.txt") as f:
 
 setup(
     name="ineedproxy",
-    version="0.1.0",
+    version="0.1.1",
     description="Easy but powerful proxy management Python package. Used to fetch, manage, rotate and use proxies.",
     long_description=long_description,
     long_description_content_type="text/markdown",

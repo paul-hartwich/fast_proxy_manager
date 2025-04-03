@@ -11,7 +11,7 @@ will not take responsibility for any misuse of this library.*
 *Python 3.12.8 is recommended and is the one worked with. But others will probably work too.*
 
 ```bash
-pip install ineedproxy # currently not working
+pip install ineedproxy
 ```
 
 **Example:**
