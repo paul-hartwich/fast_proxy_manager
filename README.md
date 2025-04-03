@@ -16,5 +16,5 @@ pip install ineedproxy # currently not working
 
 **Example:**
 
-For code example, see [basic_usage.py](example/basic_usage.py)
+For code example, see [basic_usage.py](https://github.com/paul-hartwich/ineedproxy/blob/master/example/basic_usage.py)
 
