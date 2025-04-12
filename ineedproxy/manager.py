@@ -149,6 +149,9 @@ class Manager:
         :return: The full aiohttp.ClientResponse object or None if all attempts fail.
         """
 
+        if not self.auto_fetch_proxies:
+            raise Exception("THE AUTO FETCH PROXIES OPTION IS NOT ENABLED. PLEASE ENABLE IT TO USE THIS METHOD.")
+
         if session is None:
             session = aiohttp.ClientSession()
 

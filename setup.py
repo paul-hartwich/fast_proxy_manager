@@ -1,4 +1,5 @@
 from setuptools import setup, find_packages
+from ineedproxy.version import __version__
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -8,8 +9,8 @@ with open("requirements.txt") as f:
 
 setup(
     name="ineedproxy",
-    version="0.1.2",
-    description="Easy but powerful proxy management Python package. Used to fetch, manage, rotate and use proxies.",
+    version=__version__,
+    description="An aio library designed for easy and reliable access to working proxies. It primarily fetches, manages, rotates, and stores proxy data.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Paul Hartwich",

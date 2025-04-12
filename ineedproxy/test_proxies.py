@@ -60,8 +60,6 @@ async def _is_proxy_valid(
                     pass
             return None
 
-    except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError):
-        return None
     except Exception:
         return None
 
